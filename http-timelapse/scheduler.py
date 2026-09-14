@@ -72,21 +72,25 @@ class Scheduler(threading.Thread):
         self._maybe_cleanup(now)
 
     def _submit(self, source, reasons):
+        self.submit_capture(source, reasons)
+
+    def submit_capture(self, source, reasons):
         with self._lock:
             if source.name in self._busy:
                 LOGGER.warning(
                     "%s is still busy, trigger skipped: %s", source.name, ", ".join(reasons)
                 )
-                return
+                return None
             self._busy.add(source.name)
-        self._executor.submit(self._run, source, reasons)
+        return self._executor.submit(self._run, source, reasons)
 
     def _run(self, source, reasons):
         try:
             LOGGER.info("%s capture triggered (%s)", source.name, ", ".join(reasons))
-            capture_source(source, datetime.now(self.tzinfo), self.stop_event, LOGGER)
+            return capture_source(source, datetime.now(self.tzinfo), self.stop_event, LOGGER)
         except Exception:
             LOGGER.exception("%s capture crashed", source.name)
+            return None
         finally:
             with self._lock:
                 self._busy.discard(source.name)

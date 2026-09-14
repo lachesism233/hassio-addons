@@ -118,6 +118,24 @@ image: http://<Home Assistant 地址>:8099/Tuya/latest.jpg
 - 局域网直接访问：`http://<Home Assistant 地址>:8099/`
 - 点击卡片可进入对应目录浏览全部历史截图
 
+## 调试：手动抓拍
+
+浏览面板上提供了调试用的手动抓拍按钮：
+
+- 每个源卡片上的 **立即抓拍**：忽略时间点/间隔，立即抓拍一次，页面会显示保存的文件名或失败原因
+- 顶部的 **全部立即抓拍**：依次触发所有源
+- 若该源已有抓拍任务正在执行，会提示 `busy`，不会重复触发
+
+也可以通过 HTTP 接口调用（返回 JSON）：
+
+```bash
+curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=Tuya"
+curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=*"
+```
+
+成功返回 `{"ok": true, "source": "Tuya", "file": "20260914_071500.jpg"}`，
+失败返回 `{"ok": false, "error": "..."}`。
+
 ## 排错
 
 - **日志**：应用页面 → 日志，会记录每个源的调度信息和每次抓拍的尝试/结果

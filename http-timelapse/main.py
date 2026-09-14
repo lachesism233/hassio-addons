@@ -98,12 +98,13 @@ def main():
         signal.signal(signal.SIGTERM, request_stop)
         signal.signal(signal.SIGINT, request_stop)
 
+    scheduler = Scheduler(sources, tzinfo, stop_event)
+
     web_thread = threading.Thread(
-        target=serve, args=(media_root, sources, stop_event), name="web", daemon=True
+        target=serve, args=(media_root, sources, stop_event, scheduler), name="web", daemon=True
     )
     web_thread.start()
 
-    scheduler = Scheduler(sources, tzinfo, stop_event)
     scheduler.start()
 
     LOGGER.info(
