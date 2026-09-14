@@ -15,7 +15,9 @@
 | 配置项 | 说明 | 默认值 |
 | --- | --- | --- |
 | `timezone` | 容器时区；留空时自动读取 Home Assistant 的时区，读取失败则回退 UTC | 留空（跟随 HA） |
-| `allow_internal_requests` | 允许 Heimdall 向私有/保留 IP 地址发起查找请求；磁贴指向内网服务并使用在线查找/抓取图标时开启 | `false` |
+| `allow_internal_requests` | 允许 Heimdall 向私有/保留 IP 地址发起查找请求（填内网 URL 自动抓取标题/图标需要它） | `true` |
+
+> 默认值面向纯内网使用场景。若通过反向代理把 Heimdall 暴露到公网，请改为 `false`，以启用 SSRF 防护。
 
 ## 数据与备份
 
@@ -29,11 +31,17 @@
 - 如需侧边栏入口，可在仪表盘中添加「网页」卡片，URL 填 `http://<Home Assistant 地址>:10000`
 - 若 10000 端口被占用，修改本应用 `config.yaml` 中的 `80/tcp: 10000` 后重新安装
 
+## 版本号规则
+
+- 应用版本号与上游 Heimdall 版本保持一致（上游 `2.8.3` 时本应用也是 `2.8.3`）
+- 仅修改打包层而不升级上游时，用第四位递增区分，例如 `2.8.3.1`、`2.8.3.2`
+- 版本号变化是 Home Assistant 识别应用更新的唯一依据，修改后需同步 `build.yaml` 中的镜像 tag
+
 ## 升级
 
 1. 查看上游新版本：https://hub.docker.com/r/linuxserver/heimdall/tags
 2. 修改 `build.yaml` 中两个架构的 tag，例如 `arm64v8-2.8.4` 与 `amd64-2.8.4`
-3. 提升 `config.yaml` 的 `version`，例如 `1.0.1`
+3. 把 `config.yaml` 的 `version` 同步为上游版本，例如 `2.8.4`
 4. 推送后用户在应用商店更新即可；更新会重建镜像，数据与配置不受影响
 
 ## 故障排查

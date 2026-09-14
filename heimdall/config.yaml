@@ -1,5 +1,5 @@
 name: Heimdall
-version: "1.0.0"
+version: "2.8.3"
 slug: heimdall
 description: >-
   Heimdall 应用导航面板：把常用网站与自托管服务集中为图标磁贴，支持分组、搜索与图标库
@@ -20,7 +20,7 @@ map:
   - addon_config:rw
 options:
   timezone: ""
-  allow_internal_requests: false
+  allow_internal_requests: true
 schema:
   timezone: str?
   allow_internal_requests: bool
