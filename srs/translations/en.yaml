@@ -1,0 +1,25 @@
+configuration:
+  timezone:
+    name: Timezone
+    description: Leave empty to keep the container in UTC.
+  log_level:
+    name: Log level
+    description: SRS log verbosity written to the app log (trace/debug/info/warn/error).
+  webrtc_candidate:
+    name: WebRTC candidate address
+    description: >-
+      LAN IP address of the Home Assistant host that players can reach.
+      Required for WebRTC with bridge networking. Leave empty to let SRS auto-detect.
+  webrtc_tcp_enabled:
+    name: Enable WebRTC over TCP
+    description: Adds a TCP listener on port 8000 for networks where UDP is blocked.
+  srt_enabled:
+    name: Enable SRT server
+    description: Enables the SRT ingest server on UDP 10080.
+network:
+  1935/TCP: RTMP ingest (OBS/FFmpeg)
+  1985/TCP: HTTP API (also used for WebRTC signaling)
+  8080/TCP: HTTP server (HLS/HTTP-FLV playback and web players)
+  8000/UDP: WebRTC media (do not remap)
+  8000/TCP: WebRTC over TCP (optional)
+  10080/UDP: SRT ingest (optional)

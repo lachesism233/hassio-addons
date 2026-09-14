@@ -1,0 +1,44 @@
+name: SRS 流媒体服务器
+version: "6.0.191"
+slug: srs
+description: >-
+  高性能实时流媒体服务器：OBS/FFmpeg 推流（RTMP/SRT），HLS、HTTP-FLV、WebRTC 多协议播放
+url: https://github.com/lachesism233/hassio-addons
+arch:
+  - aarch64
+  - amd64
+startup: application
+boot: auto
+init: false
+ingress: true
+ingress_port: 8080
+panel_icon: mdi:broadcast
+panel_title: SRS 流媒体
+ports:
+  1935/tcp: 1935
+  1985/tcp: 1985
+  8080/tcp: 8080
+  8000/udp: 8000
+  8000/tcp: 8000
+  10080/udp: 10080
+ports_description:
+  1935/tcp: RTMP ingest (OBS/FFmpeg push)
+  1985/tcp: HTTP API (also used for WebRTC signaling)
+  8080/tcp: HTTP server (HLS/HTTP-FLV playback and web players)
+  8000/udp: WebRTC media (do not remap)
+  8000/tcp: WebRTC over TCP (optional, needs webrtc_tcp_enabled)
+  10080/udp: SRT ingest (optional)
+map:
+  - addon_config:rw
+options:
+  timezone: ""
+  log_level: info
+  webrtc_candidate: ""
+  webrtc_tcp_enabled: false
+  srt_enabled: false
+schema:
+  timezone: str?
+  log_level: list(trace|debug|info|warn|error)
+  webrtc_candidate: str?
+  webrtc_tcp_enabled: bool
+  srt_enabled: bool

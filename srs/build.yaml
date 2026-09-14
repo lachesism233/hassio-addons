@@ -1,0 +1,7 @@
+# 升级上游版本：修改下方两个 tag（见 https://hub.docker.com/r/ossrs/srs/tags），
+# 并同步提升 config.yaml 的 version，用户即可在应用商店更新。
+# 官方镜像是 amd64/arm64/armv7 多架构清单，两个架构可指向同一个 tag。
+# 国内网络拉取慢或失败时，可把 ossrs/srs 替换为 registry.cn-hangzhou.aliyuncs.com/ossrs/srs（tag 相同）。
+build_from:
+  aarch64: ossrs/srs:6.0.191
+  amd64: ossrs/srs:6.0.191

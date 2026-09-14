@@ -1,0 +1,25 @@
+configuration:
+  timezone:
+    name: 时区
+    description: 留空则容器使用 UTC。
+  log_level:
+    name: 日志级别
+    description: 输出到应用日志的详细程度（trace/debug/info/warn/error）。
+  webrtc_candidate:
+    name: WebRTC 对外地址
+    description: >-
+      播放端可访问的 Home Assistant 主机局域网 IP，桥接网络下 WebRTC 需要它。
+      留空则由 SRS 自动探测（可能探测到容器内网地址）。
+  webrtc_tcp_enabled:
+    name: 启用 WebRTC over TCP
+    description: 额外监听 TCP 8000，适用于 UDP 被封锁的网络。
+  srt_enabled:
+    name: 启用 SRT 服务器
+    description: 在 UDP 10080 上开启 SRT 推流服务。
+network:
+  1935/TCP: RTMP 推流（OBS/FFmpeg）
+  1985/TCP: HTTP API（WebRTC 信令也使用）
+  8080/TCP: HTTP 服务（HLS/HTTP-FLV 播放与网页播放器）
+  8000/UDP: WebRTC 媒体端口（不要修改映射）
+  8000/TCP: WebRTC over TCP（可选）
+  10080/UDP: SRT 推流（可选）

@@ -13,6 +13,7 @@ Home Assistant app (formerly add-on) repository.
 | --- | --- |
 | [HTTP Timelapse (延时摄影)](http-timelapse/) | Scheduled JPEG capture from go2rtc/HTTP sources with validation, retries, per-source schedules and a built-in gallery |
 | [Heimdall](heimdall/) | Application dashboard with icon tiles for your favourite sites and self-hosted services |
+| [SRS (流媒体服务器)](srs/) | Realtime media server for Home Assistant: RTMP/SRT ingest from OBS or FFmpeg with HLS, HTTP-FLV and WebRTC playback |
 
 ## Installation
 
@@ -32,6 +33,7 @@ Home Assistant app (formerly add-on) repository.
 
 - [HTTP Timelapse documentation (Simplified Chinese)](http-timelapse/DOCS.md)
 - [Heimdall documentation (Simplified Chinese)](heimdall/DOCS.md)
+- [SRS documentation (Simplified Chinese)](srs/DOCS.md)
 
 ## Notes
 
