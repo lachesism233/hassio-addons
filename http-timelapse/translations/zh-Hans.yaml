@@ -1,0 +1,43 @@
+configuration:
+  timezone:
+    name: 时区
+    description: 用于调度与文件命名的时区，例如 Asia/Shanghai；留空则自动读取 Home Assistant 的时区。
+  media_root:
+    name: 浏览根目录
+    description: Web 浏览面板的根目录，建议把各个抓拍目录都放在它下面，例如 /share/timelapse。
+  captures:
+    name: 抓拍源列表
+    description: 每个源独立配置抓拍地址、时间点/间隔、存储目录、重试与保留策略。
+    fields:
+      name:
+        name: 名称
+        description: 源名称，用于日志和默认存储目录，例如 Tuya。
+      url:
+        name: 抓拍地址
+        description: 返回 JPEG 图片的 HTTP 地址，例如 http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
+      directory:
+        name: 存储目录
+        description: 图片保存目录（容器内路径），留空时使用“浏览根目录/名称”。
+      times:
+        name: 每日时间点
+        description: 每天抓拍的时刻，24 小时制 HH:MM，可添加多条。
+      interval_minutes:
+        name: 抓拍间隔（分钟）
+        description: 大于 0 时按固定间隔抓拍；0 表示只用每日时间点。
+      retries:
+        name: 重试次数
+        description: 首次失败后的额外重试次数，默认 3。
+      retry_wait:
+        name: 重试等待（秒）
+        description: 两次尝试之间的等待秒数，默认 5。
+      timeout:
+        name: 请求超时（秒）
+        description: 单次 HTTP 请求超时，默认 10。
+      min_size:
+        name: 最小图片大小（字节）
+        description: 小于该大小的响应视为无效，默认 1024。
+      keep_days:
+        name: 保留天数
+        description: 大于 0 时每天自动删除超过该天数的截图；0 表示永久保留。
+network:
+  8099/TCP: Web 浏览端口（推荐使用侧边栏 Ingress，无需映射端口）

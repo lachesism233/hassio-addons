@@ -1,0 +1,43 @@
+configuration:
+  timezone:
+    name: Timezone
+    description: Timezone used for scheduling and file names, e.g. Asia/Shanghai. Leave empty to use the Home Assistant timezone.
+  media_root:
+    name: Gallery root
+    description: Root directory served by the web gallery. Keep capture directories under it, e.g. /share/timelapse.
+  captures:
+    name: Capture sources
+    description: Each source has its own snapshot URL, schedule, storage directory, retry policy and retention.
+    fields:
+      name:
+        name: Name
+        description: Source name used in logs and as the default storage directory.
+      url:
+        name: Snapshot URL
+        description: HTTP endpoint returning a JPEG, e.g. http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
+      directory:
+        name: Storage directory
+        description: Directory inside the container, defaults to "gallery root / name".
+      times:
+        name: Daily times
+        description: Times of day to capture, 24h HH:MM, multiple entries allowed.
+      interval_minutes:
+        name: Interval (minutes)
+        description: Capture every N minutes when greater than 0; 0 disables interval capture.
+      retries:
+        name: Retries
+        description: Extra attempts after the first failure, default 3.
+      retry_wait:
+        name: Retry wait (s)
+        description: Seconds to wait between attempts, default 5.
+      timeout:
+        name: Request timeout (s)
+        description: HTTP request timeout, default 10.
+      min_size:
+        name: Minimum size (bytes)
+        description: Responses smaller than this are rejected, default 1024.
+      keep_days:
+        name: Keep days
+        description: Delete captures older than N days; 0 keeps everything.
+network:
+  8099/TCP: Web gallery port (ingress is preferred, mapping is optional)

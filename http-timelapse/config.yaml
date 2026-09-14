@@ -1,7 +1,7 @@
-name: HTTP Timelapse
-version: "0.1.0"
+name: 延时摄影
+version: "0.2.0-alpha1"
 slug: http_timelapse
-description: Serve timelapse media over HTTP from a shared folder
+description: 无人值守定时抓拍 HTTP 快照（go2rtc/JPEG），自动校验与重试、多源独立调度，内置浏览面板
 url: https://github.com/lachesism233/hassio-addons
 arch:
   - aarch64
@@ -9,13 +9,45 @@ arch:
 startup: application
 boot: auto
 init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:camera-timer
+panel_title: 延时摄影
 ports:
   8099/tcp: 8099
 ports_description:
-  8099/tcp: Web interface
+  8099/tcp: Web gallery (optional, built-in ingress is preferred)
 map:
   - share:rw
 options:
-  directory: /share/timelapse
+  timezone: Asia/Shanghai
+  media_root: /share/timelapse
+  captures:
+    - name: Tuya
+      url: http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
+      directory: /share/timelapse/Tuya
+      times:
+        - "07:00"
+        - "12:00"
+        - "18:00"
+      interval_minutes: 0
+      retries: 3
+      retry_wait: 5
+      timeout: 10
+      min_size: 1024
+      keep_days: 0
 schema:
-  directory: str
+  timezone: str
+  media_root: str
+  captures:
+    - name: str
+      url: url
+      directory: str?
+      times:
+        - 'match(^\d{1,2}:\d{2}$)?'
+      interval_minutes: int(0,1440)?
+      retries: int(0,20)?
+      retry_wait: int(1,600)?
+      timeout: int(1,300)?
+      min_size: int(0,)?
+      keep_days: int(0,3650)?
