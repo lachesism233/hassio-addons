@@ -34,7 +34,6 @@ Use this method if the buttons above do not work, for example when Home Assistan
 
 ## Documentation
 
-Bilingual (English / Simplified Chinese) documentation:
 
 - [HTTP Timelapse documentation](http-timelapse/DOCS.md) · [changelog](http-timelapse/CHANGELOG.md)
 - [Heimdall documentation](heimdall/DOCS.md) · [changelog](heimdall/CHANGELOG.md)
