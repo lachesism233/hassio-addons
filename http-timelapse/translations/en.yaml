@@ -3,11 +3,11 @@ configuration:
     name: Timezone
     description: Timezone used for scheduling and file names, e.g. Asia/Shanghai. Leave empty to use the Home Assistant timezone.
   media_root:
-    name: Gallery root
-    description: Root directory served by the web gallery. Keep capture directories under it, e.g. /share/timelapse.
+    name: Storage root
+    description: Root directory for captures, defaults to /media/timelapse when empty; each source saves to "<root>/<name>" unless overridden.
   captures:
     name: Capture sources
-    description: Each source has its own snapshot URL, schedule, storage directory, retry policy and retention.
+    description: Each source has its own snapshot URL, schedule, storage directory, file name format, retry policy and retention.
     fields:
       name:
         name: Name
@@ -16,11 +16,14 @@ configuration:
         name: Snapshot URL
         description: HTTP endpoint returning a JPEG, e.g. http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
       directory:
-        name: Storage directory
-        description: Directory inside the container, defaults to "gallery root / name".
+        name: Custom directory
+        description: Leave empty for "<storage root>/<name>"; relative paths are based on the storage root, e.g. Tuya or /media/timelapse/Tuya.
+      filename_format:
+        name: File name format
+        description: Leave empty for the default snapshot_%Y%m%d_%H%M%S.jpg; supports %Y %m %d %H %M %S. The time is the scheduled trigger time.
       times:
         name: Daily times
-        description: Times of day to capture, 24h HH:MM, multiple entries allowed.
+        description: Times of day to capture, 24h HH:MM, multiple entries allowed; editable with a time picker on the gallery Settings page.
       interval_minutes:
         name: Interval (minutes)
         description: Capture every N minutes when greater than 0; 0 disables interval capture.

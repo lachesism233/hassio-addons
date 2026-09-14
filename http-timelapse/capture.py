@@ -10,6 +10,8 @@ LOGGER = logging.getLogger("capture")
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
 JPEG_SOI = b"\xff\xd8\xff"
 JPEG_EOI = b"\xff\xd9"
+DEFAULT_FILENAME_FORMAT = "snapshot_%Y%m%d_%H%M%S.jpg"
+MAX_FILENAME_LENGTH = 120
 
 
 class CaptureError(Exception):
@@ -28,6 +30,7 @@ class Source:
     timeout: int = 10
     min_size: int = 1024
     keep_days: int = 0
+    filename_format: str = DEFAULT_FILENAME_FORMAT
 
     def describe(self):
         times = ",".join(self.times) if self.times else "-"
@@ -35,7 +38,8 @@ class Source:
         keep = f"{self.keep_days}d" if self.keep_days > 0 else "forever"
         return (
             f"{self.name}: times={times} interval={interval} dir={self.directory} "
-            f"retries={self.retries} retry_wait={self.retry_wait}s timeout={self.timeout}s "
+            f"filename={self.filename_format} retries={self.retries} "
+            f"retry_wait={self.retry_wait}s timeout={self.timeout}s "
             f"min_size={self.min_size}B keep={keep}"
         )
 
@@ -107,6 +111,8 @@ def build_sources(raw_captures, media_root, logger=None):
         else:
             directory_path = Path(media_root) / sanitize_name(name)
 
+        filename_format = str(pick(raw, "filename_format", "") or "").strip() or DEFAULT_FILENAME_FORMAT
+
         source = Source(
             name=name,
             url=url,
@@ -118,6 +124,7 @@ def build_sources(raw_captures, media_root, logger=None):
             timeout=max(1, as_int(raw, "timeout", 10)),
             min_size=max(0, as_int(raw, "min_size", 1024)),
             keep_days=max(0, as_int(raw, "keep_days", 0)),
+            filename_format=filename_format,
         )
         if not source.times and source.interval_minutes <= 0:
             logger.warning("%s has no daily times and no interval, it will never capture", name)
@@ -148,13 +155,36 @@ def validate_image(data, min_size):
     return None
 
 
-def save_image(source, data, now):
+def format_filename(source, when):
+    pattern = source.filename_format or DEFAULT_FILENAME_FORMAT
+    try:
+        name = when.strftime(pattern)
+    except Exception:
+        LOGGER.warning("invalid filename format '%s' for %s, using default", pattern, source.name)
+        name = when.strftime(DEFAULT_FILENAME_FORMAT)
+
+    name = Path(name).name
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", name).strip().strip(".")
+    if not name:
+        name = when.strftime(DEFAULT_FILENAME_FORMAT)
+    if not Path(name).suffix:
+        name += ".jpg"
+    if len(name) > MAX_FILENAME_LENGTH:
+        stem = Path(name).stem[: MAX_FILENAME_LENGTH - len(Path(name).suffix)]
+        name = stem + Path(name).suffix
+    return name
+
+
+def save_image(source, data, when):
     source.directory.mkdir(parents=True, exist_ok=True)
-    stamp = now.strftime("%Y%m%d_%H%M%S")
-    path = source.directory / f"{stamp}.jpg"
+    filename = format_filename(source, when)
+    stem = Path(filename).stem
+    suffix = Path(filename).suffix
+
+    path = source.directory / filename
     counter = 1
     while path.exists():
-        path = source.directory / f"{stamp}-{counter}.jpg"
+        path = source.directory / f"{stem}-{counter}{suffix}"
         counter += 1
 
     tmp_path = path.with_name(path.name + ".tmp")
@@ -169,7 +199,7 @@ def save_image(source, data, now):
     return path
 
 
-def capture_source(source, now, stop_event, logger=None):
+def capture_source(source, when, stop_event, logger=None):
     logger = logger or LOGGER
     attempts = max(1, 1 + int(source.retries))
 
@@ -179,7 +209,7 @@ def capture_source(source, now, stop_event, logger=None):
             problem = validate_image(data, source.min_size)
             if problem:
                 raise CaptureError(problem)
-            path = save_image(source, data, now)
+            path = save_image(source, data, when)
             logger.info(
                 "%s saved %s (%d bytes, attempt %d/%d)",
                 source.name,
@@ -214,15 +244,16 @@ def cleanup_source(source, now, logger=None):
 
     cutoff = now.timestamp() - source.keep_days * 86400
     removed = 0
-    for path in source.directory.glob("*.jpg"):
-        if path.name == "latest.jpg":
-            continue
-        try:
-            if path.stat().st_mtime < cutoff:
-                path.unlink()
-                removed += 1
-        except OSError as exc:
-            logger.warning("%s cleanup failed for %s: %s", source.name, path, exc)
+    for pattern in ("*.jpg", "*.jpeg"):
+        for path in source.directory.glob(pattern):
+            if path.name == "latest.jpg":
+                continue
+            try:
+                if path.stat().st_mtime < cutoff:
+                    path.unlink()
+                    removed += 1
+            except OSError as exc:
+                logger.warning("%s cleanup failed for %s: %s", source.name, path, exc)
 
     if removed:
         logger.info(

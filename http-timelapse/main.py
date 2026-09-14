@@ -14,13 +14,14 @@ if str(APP_DIR) not in sys.path:
 
 from capture import build_sources
 from scheduler import Scheduler
+from settings import SettingsManager
 from web import serve
 
 LOGGER = logging.getLogger("main")
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 DEFAULT_OPTIONS_PATH = "/data/options.json"
-DEFAULT_MEDIA_ROOT = "/share/timelapse"
+DEFAULT_MEDIA_ROOT = "/media/timelapse"
 
 
 def load_options():
@@ -99,9 +100,13 @@ def main():
         signal.signal(signal.SIGINT, request_stop)
 
     scheduler = Scheduler(sources, tzinfo, stop_event)
+    settings = SettingsManager(options, options_path)
 
     web_thread = threading.Thread(
-        target=serve, args=(media_root, sources, stop_event, scheduler), name="web", daemon=True
+        target=serve,
+        args=(media_root, sources, stop_event, scheduler, settings),
+        name="web",
+        daemon=True,
     )
     web_thread.start()
 

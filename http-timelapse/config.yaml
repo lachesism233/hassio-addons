@@ -1,5 +1,5 @@
 name: 延时摄影
-version: "0.2.0-alpha2"
+version: "0.3.0-alpha1"
 slug: http_timelapse
 description: 无人值守定时抓拍 HTTP 快照（go2rtc/JPEG），自动校验与重试、多源独立调度，内置浏览面板
 url: https://github.com/lachesism233/hassio-addons
@@ -19,13 +19,15 @@ ports_description:
   8099/tcp: Web gallery (optional, built-in ingress is preferred)
 map:
   - share:rw
+  - media:rw
 options:
   timezone: Asia/Shanghai
-  media_root: /share/timelapse
+  media_root: ""
   captures:
     - name: Tuya
       url: http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
-      directory: /share/timelapse/Tuya
+      directory: ""
+      filename_format: ""
       times:
         - "07:00"
         - "12:00"
@@ -38,11 +40,12 @@ options:
       keep_days: 0
 schema:
   timezone: str
-  media_root: str
+  media_root: str?
   captures:
     - name: str
       url: url
       directory: str?
+      filename_format: str?
       times:
         - 'match(^\d{1,2}:\d{2}$)?'
       interval_minutes: int(0,1440)?

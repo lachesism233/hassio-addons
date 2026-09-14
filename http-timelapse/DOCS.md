@@ -6,12 +6,12 @@
 ## 功能
 
 - **多抓拍源**：可添加任意数量的 URL，每个源独立配置
-- **多种触发**：每日时间点（HH:MM，可多条）和/或固定间隔（例如每 5 分钟）
+- **多种触发**：每日时间点（HH:MM，可多条，可在面板用时间选择器编辑）和/或固定间隔（例如每 5 分钟）
 - **可靠性**：请求超时、失败自动重试（次数与等待时间可配）、HTTP 状态码与 JPEG 文件头校验
-- **存储**：成功才写盘，文件名 `YYYYMMDD_HHMMSS.jpg`，原子写入，重名自动加后缀
+- **存储**：成功才写盘，默认文件名 `snapshot_%Y%m%d_%H%M%S.jpg`，原子写入，重名自动加后缀
 - **latest.jpg**：每个源目录自动维护最新截图，供仪表盘展示
 - **自动清理**：每个源可选保留天数，过期截图每日自动删除（默认关闭）
-- **可视化配置**：在应用配置页中添加/删除抓拍源并调整参数，字段为中文说明
+- **可视化配置**：应用配置页配置参数；浏览面板的「设置」页提供时间选择器
 - **浏览面板**：Home Assistant 侧边栏入口（Ingress），也可映射 8099 端口直接访问
 
 ## 安装
@@ -22,15 +22,16 @@
 
 ## 配置
 
-打开应用的 **配置** 标签页，可直接增删抓拍源。等价的 YAML 示例：
+打开应用的 **配置** 标签页，可直接增删抓拍源。等价的 YAML 示例（自定义目录与文件名格式默认留空）：
 
 ```yaml
 timezone: Asia/Shanghai
-media_root: /share/timelapse
+media_root: ""
 captures:
   - name: Tuya
     url: http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
-    directory: /share/timelapse/Tuya
+    directory: ""
+    filename_format: ""
     times:
       - "07:00"
       - "12:00"
@@ -48,7 +49,7 @@ captures:
 | 配置项 | 说明 | 默认值 |
 | --- | --- | --- |
 | `timezone` | 调度与文件命名的时区；留空自动读取 Home Assistant 时区 | `Asia/Shanghai` |
-| `media_root` | 浏览面板的根目录，建议所有抓拍目录放在它下面 | `/share/timelapse` |
+| `media_root` | 抓拍存储根目录（同时是浏览面板根目录）；**留空使用默认值** | `/media/timelapse` |
 
 ### 抓拍源配置项（`captures` 列表中的每一项）
 
@@ -56,7 +57,8 @@ captures:
 | --- | --- | --- | --- |
 | `name` | 是 | 源名称，用于日志和默认存储目录 | - |
 | `url` | 是 | 返回 JPEG 的抓拍地址 | - |
-| `directory` | 否 | 图片保存目录（容器内路径），留空则使用 `media_root/名称` | - |
+| `directory` | 否 | 自定义存储目录，**留空使用“存储根目录/名称”**；相对路径基于存储根目录 | 空 |
+| `filename_format` | 否 | 文件名格式，**留空使用默认值**；时间部分为计划触发时间 | `snapshot_%Y%m%d_%H%M%S.jpg` |
 | `times` | 否 | 每日抓拍时间点，24 小时制 `HH:MM`，可添加多条 | 无 |
 | `interval_minutes` | 否 | 大于 0 时按固定间隔抓拍（分钟） | `0`（关闭） |
 | `retries` | 否 | 首次失败后的额外重试次数 | `3` |
@@ -85,21 +87,31 @@ http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
 2. 单次尝试 = 发起请求 + 校验（HTTP 200、大小 ≥ `min_size`、JPEG 文件头 `FF D8 FF`）
 3. 失败后等待 `retry_wait` 秒再试，总尝试次数 = 1 + `retries`
 4. 全部失败会记录错误日志，不影响之后的调度
-5. 成功的文件保存为 `media_root/源/20260914_071500.jpg`，并更新同目录的 `latest.jpg`
+5. 成功的文件按 `filename_format` 命名，并更新同目录的 `latest.jpg`
 
-若同一秒内产生多张（例如重名），自动命名为 `20260914_071500-1.jpg`、`-2.jpg`……
+**文件名使用计划触发时间，而不是实际完成时间**：
+
+| 触发方式 | 文件名中的时间 |
+| --- | --- |
+| 每日时间点 `07:00`（实际在 07:00:05 触发、重试到 07:01 才成功） | `07:00:00` |
+| 固定间隔 5 分钟（12:05 档，实际在 12:05:03 触发） | `12:05:00` |
+| 手动「立即抓拍」 | 实际抓拍时间 |
+
+若同一秒内产生多张（例如重名），自动命名为 `snapshot_20260914_071500-1.jpg`、`-2.jpg`……
 
 ## 文件与目录
 
 ```
-/share/timelapse/          <- media_root（share 目录映射到 HA 的 /share）
+/media/timelapse/              <- media_root 默认值（留空时使用）
 ├── Tuya/
-│   ├── 20260914_071500.jpg
-│   ├── 20260914_120000.jpg
-│   └── latest.jpg         <- 最新一张，方便仪表盘引用
+│   ├── snapshot_20260914_071500.jpg
+│   ├── snapshot_20260914_120000.jpg
+│   └── latest.jpg             <- 最新一张，方便仪表盘引用
 └── Camera2/
     └── ...
 ```
+
+`/media` 已映射到 Home Assistant 的媒体目录，重启后文件不会丢失，也可以在媒体浏览器中查看。
 
 ## 在仪表盘显示最新画面
 
@@ -118,6 +130,17 @@ image: http://<Home Assistant 地址>:8099/Tuya/latest.jpg
 - 局域网直接访问：`http://<Home Assistant 地址>:8099/`
 - 点击卡片可进入对应目录浏览全部历史截图
 
+## 设置页（时间选择器）
+
+应用配置页只能以文本方式输入时间点，因此在浏览面板中提供了「设置」页：
+
+1. 打开侧边栏「延时摄影」→ 顶部 **设置**
+2. 每个源显示一组时间选择器，可 **添加时间点 / 删除**
+3. 点击 **保存并重启**：时间点写入应用配置，应用自动重启后生效，页面会自动等待并刷新
+
+> 设置页只编辑每日时间点；URL、目录、重试等参数仍在应用配置页修改。
+> 保存需要应用能调用 Supervisor API（正常安装即支持）；页面短暂无法访问属于重启过程。
+
 ## 调试：手动抓拍
 
 浏览面板上提供了调试用的手动抓拍按钮：
@@ -133,7 +156,7 @@ curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=Tuya"
 curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=*"
 ```
 
-成功返回 `{"ok": true, "source": "Tuya", "file": "20260914_071500.jpg"}`，
+成功返回 `{"ok": true, "source": "Tuya", "file": "snapshot_20260914_071500.jpg"}`，
 失败返回 `{"ok": false, "error": "..."}`。
 
 ## 排错
@@ -142,8 +165,9 @@ curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=*"
 - **一直失败**：检查 go2rtc 是否可访问、`src` 名称是否正确、URL 是否需要引号
 - **没有生成图片**：确认 `times` 或 `interval_minutes` 已配置，且时间格式为 `HH:MM`
 - **时间不对**：检查 `timezone`，留空时会自动使用 Home Assistant 的时区
+- **设置页保存失败**：查看日志中 `settings` 与 `web` 的记录；确认应用未被限制调用 Supervisor API
 
 ## 说明
 
-- 应用仅映射 `share:rw`，所有截图保存在 `/share` 下，重启后不会丢失
+- 应用映射 `media:rw` 与 `share:rw`，默认截图保存在 `/media/timelapse`，自定义目录也可用 `/share/...`
 - 若需要更长的录像式延时视频，可在后续版本中加入 ffmpeg 合成功能

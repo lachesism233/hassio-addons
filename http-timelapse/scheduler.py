@@ -56,25 +56,32 @@ class Scheduler(threading.Thread):
 
         for source in self.sources:
             reasons = []
+            when = None
             if current in source.times:
                 key = (day, source.name, current)
                 if key not in self._fired:
                     self._fired.add(key)
                     reasons.append(f"time {current}")
+                    hour, minute = (int(part) for part in current.split(":"))
+                    when = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
             if source.interval_minutes > 0:
                 slot = self._slot(now, source)
                 if self._slots.get(source.name) != slot:
                     self._slots[source.name] = slot
                     reasons.append(f"interval {source.interval_minutes}m")
+                    if when is None:
+                        when = datetime.fromtimestamp(
+                            slot * source.interval_minutes * 60, tz=self.tzinfo
+                        )
             if reasons:
-                self._submit(source, reasons)
+                self._submit(source, reasons, when)
 
         self._maybe_cleanup(now)
 
-    def _submit(self, source, reasons):
-        self.submit_capture(source, reasons)
+    def _submit(self, source, reasons, when=None):
+        self.submit_capture(source, reasons, when)
 
-    def submit_capture(self, source, reasons):
+    def submit_capture(self, source, reasons, when=None):
         with self._lock:
             if source.name in self._busy:
                 LOGGER.warning(
@@ -82,12 +89,13 @@ class Scheduler(threading.Thread):
                 )
                 return None
             self._busy.add(source.name)
-        return self._executor.submit(self._run, source, reasons)
+        return self._executor.submit(self._run, source, reasons, when)
 
-    def _run(self, source, reasons):
+    def _run(self, source, reasons, when=None):
         try:
             LOGGER.info("%s capture triggered (%s)", source.name, ", ".join(reasons))
-            return capture_source(source, datetime.now(self.tzinfo), self.stop_event, LOGGER)
+            moment = when or datetime.now(self.tzinfo)
+            return capture_source(source, moment, self.stop_event, LOGGER)
         except Exception:
             LOGGER.exception("%s capture crashed", source.name)
             return None

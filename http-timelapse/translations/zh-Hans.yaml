@@ -3,11 +3,11 @@ configuration:
     name: 时区
     description: 用于调度与文件命名的时区，例如 Asia/Shanghai；留空则自动读取 Home Assistant 的时区。
   media_root:
-    name: 浏览根目录
-    description: Web 浏览面板的根目录，建议把各个抓拍目录都放在它下面，例如 /share/timelapse。
+    name: 存储根目录
+    description: 抓拍根目录，留空使用默认 /media/timelapse；每个源未自定义目录时保存到“根目录/名称”。
   captures:
     name: 抓拍源列表
-    description: 每个源独立配置抓拍地址、时间点/间隔、存储目录、重试与保留策略。
+    description: 每个源独立配置抓拍地址、时间点/间隔、存储目录、文件名、重试与保留策略。
     fields:
       name:
         name: 名称
@@ -16,11 +16,14 @@ configuration:
         name: 抓拍地址
         description: 返回 JPEG 图片的 HTTP 地址，例如 http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
       directory:
-        name: 存储目录
-        description: 图片保存目录（容器内路径），留空时使用“浏览根目录/名称”。
+        name: 自定义存储目录
+        description: 留空使用“存储根目录/名称”；相对路径基于存储根目录，例如 Tuya 或 /media/timelapse/Tuya。
+      filename_format:
+        name: 文件名格式
+        description: 留空使用默认 snapshot_%Y%m%d_%H%M%S.jpg；支持 %Y %m %d %H %M %S 等时间格式符，时间为计划触发时间。
       times:
         name: 每日时间点
-        description: 每天抓拍的时刻，24 小时制 HH:MM，可添加多条。
+        description: 每天抓拍的时刻，24 小时制 HH:MM，可添加多条；也可在浏览面板的“设置”页用时间选择器编辑。
       interval_minutes:
         name: 抓拍间隔（分钟）
         description: 大于 0 时按固定间隔抓拍；0 表示只用每日时间点。
