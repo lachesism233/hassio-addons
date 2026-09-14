@@ -1,0 +1,5 @@
+# 升级上游版本：修改下方两个 tag（见 https://hub.docker.com/r/linuxserver/heimdall/tags），
+# 并同步提升 config.yaml 的 version，用户即可在应用商店更新。
+build_from:
+  aarch64: lscr.io/linuxserver/heimdall:arm64v8-2.8.3
+  amd64: lscr.io/linuxserver/heimdall:amd64-2.8.3

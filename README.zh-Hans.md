@@ -12,6 +12,7 @@ Home Assistant 应用（App，旧称 Add-on）仓库。
 | 应用 | 说明 |
 | --- | --- |
 | [延时摄影 (HTTP Timelapse)](http-timelapse/) | 按时间点或间隔抓拍 go2rtc/HTTP 的 JPEG 快照，自动校验与重试，支持多源独立配置与浏览面板 |
+| [Heimdall（应用导航面板）](heimdall/) | 把常用网站与自托管服务集中为图标磁贴，支持分组、搜索与图标库 |
 
 ## 安装
 
@@ -30,6 +31,7 @@ Home Assistant 应用（App，旧称 Add-on）仓库。
 ## 文档
 
 - [延时摄影 使用说明](http-timelapse/DOCS.md)
+- [Heimdall 使用说明](heimdall/DOCS.md)
 
 ## 说明
 

@@ -1,0 +1,9 @@
+configuration:
+  timezone:
+    name: Timezone
+    description: Leave empty to follow the Home Assistant timezone automatically.
+  allow_internal_requests:
+    name: Allow internal requests
+    description: Allow Heimdall lookups against private/reserved IP addresses; enable when tiles point to internal services.
+network:
+  80/TCP: Web UI port (fixed mapping 10000)

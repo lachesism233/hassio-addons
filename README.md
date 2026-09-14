@@ -12,6 +12,7 @@ Home Assistant app (formerly add-on) repository.
 | App | Description |
 | --- | --- |
 | [HTTP Timelapse (延时摄影)](http-timelapse/) | Scheduled JPEG capture from go2rtc/HTTP sources with validation, retries, per-source schedules and a built-in gallery |
+| [Heimdall](heimdall/) | Application dashboard with icon tiles for your favourite sites and self-hosted services |
 
 ## Installation
 
@@ -30,6 +31,7 @@ Home Assistant app (formerly add-on) repository.
 ## Documentation
 
 - [HTTP Timelapse documentation (Simplified Chinese)](http-timelapse/DOCS.md)
+- [Heimdall documentation (Simplified Chinese)](heimdall/DOCS.md)
 
 ## Notes
 

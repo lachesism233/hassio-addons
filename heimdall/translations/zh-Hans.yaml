@@ -1,0 +1,9 @@
+configuration:
+  timezone:
+    name: 时区
+    description: 留空时自动跟随 Home Assistant 的时区。
+  allow_internal_requests:
+    name: 允许内网请求
+    description: 允许 Heimdall 向私有/保留 IP 地址发起查找请求；磁贴指向内网服务时开启。
+network:
+  80/TCP: Web UI 端口（固定映射 10000）
