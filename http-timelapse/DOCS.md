@@ -6,7 +6,7 @@ Serves timelapse media (images/videos) over HTTP from a folder in your Home Assi
 
 1. Settings → Apps → Install app
 2. Menu (⋮) → Repositories
-3. Add `https://github.com/lachesism233/http-timelapse`
+3. Add `https://github.com/lachesism233/hassio-addons`
 4. Install **HTTP Timelapse** and start it
 5. Open the Web UI (port 8099) to browse the media
 

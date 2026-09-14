@@ -1,4 +1,4 @@
-# http-timelapse
+# hassio-addons
 
 Home Assistant OS app (add-on) repository.
 
@@ -12,5 +12,5 @@ Home Assistant OS app (add-on) repository.
 
 1. In Home Assistant, go to **Settings → Apps → Install app**
 2. Open the menu (⋮) → **Repositories**
-3. Add `https://github.com/lachesism233/http-timelapse`
+3. Add `https://github.com/lachesism233/hassio-addons`
 4. Install **HTTP Timelapse** and start it
