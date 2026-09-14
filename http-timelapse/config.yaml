@@ -1,5 +1,5 @@
 name: 延时摄影
-version: "0.3.0-alpha3"
+version: "1.0.0"
 slug: http_timelapse
 description: 无人值守定时抓拍 HTTP 快照（go2rtc/JPEG），自动校验与重试、多源独立调度，内置浏览面板
 url: https://github.com/lachesism233/hassio-addons

@@ -1,35 +1,35 @@
 configuration:
   timezone:
     name: 时区
-    description: 用于调度与文件命名的时区，例如 Asia/Shanghai；留空则自动读取 Home Assistant 的时区。
+    description: 留空自动跟随 Home Assistant 的时区。
   media_root:
     name: 存储根目录
-    description: 抓拍根目录，留空使用默认 /media/timelapse；每个源未自定义目录时保存到“根目录/名称”。
+    description: 留空使用 /media/timelapse；每个源保存到“根目录/名称”。
   captures:
-    name: 抓拍源列表
-    description: 每个源独立配置抓拍地址、时间点/间隔、存储目录、文件名、重试与保留策略（默认列表为空，需要手动添加）。
+    name: 抓拍源
+    description: 每个抓拍地址独立配置时间与保存位置；点击“添加”创建。
     fields:
       name:
         name: 名称
-        description: 源名称，用于日志和默认存储目录，例如 camera1。
+        description: 用于日志和默认目录名，例如 camera1。
       url:
         name: 抓拍地址
-        description: 返回 JPEG 图片的 HTTP 地址，例如 http://<go2rtc 地址>:1984/api/frame.jpeg?src=camera1
+        description: 返回 JPEG 的地址，例如 http://<go2rtc 地址>:1984/api/frame.jpeg?src=camera1
       directory:
-        name: 自定义存储目录
-        description: 留空使用“存储根目录/名称”；相对路径基于存储根目录，例如 camera1 或 /media/timelapse/camera1。
+        name: 自定义目录
+        description: 留空使用“存储根目录/名称”。
       filename_format:
         name: 文件名格式
-        description: 留空使用默认 snap_%Y%m%d_%H%M%S.jpg；支持 %Y %m %d %H %M %S 等时间格式符。
+        description: 留空使用 snap_%Y%m%d_%H%M%S.jpg。
       strict_schedule_time:
         name: 严格计划时间命名
-        description: 开启时文件名中的时间严格等于计划触发时间（如设定 07:00 → snap_20260914_070000.jpg，重试也不变）；关闭则使用实际保存时间；手动抓拍始终使用实际时间。未设置时默认开启。
+        description: 文件名时间严格等于计划触发时间（重试也不变）；关闭则使用实际保存时间。
       times:
         name: 每日时间点
-        description: 每天抓拍的时刻，24 小时制 HH:MM，可添加多条；也可在浏览面板的“设置”页用时间选择器编辑。
+        description: 24 小时制 HH:MM，可多条；也可在浏览面板“设置”页用时间选择器编辑。
       interval_minutes:
-        name: 抓拍间隔（分钟）
-        description: 大于 0 时按固定间隔抓拍；0 表示只用每日时间点。
+        name: 定时间隔（分钟）
+        description: 大于 0 时按固定间隔抓拍，与每日时间点可同时使用。
       retries:
         name: 重试次数
         description: 首次失败后的额外重试次数，默认 3。
@@ -38,12 +38,12 @@ configuration:
         description: 两次尝试之间的等待秒数，默认 5。
       timeout:
         name: 请求超时（秒）
-        description: 单次 HTTP 请求超时，默认 10。
+        description: 单次请求超时，默认 10。
       min_size:
         name: 最小图片大小（字节）
-        description: 小于该大小的响应视为无效，默认 1024。
+        description: 小于该值的响应视为无效，默认 1024。
       keep_days:
         name: 保留天数
-        description: 大于 0 时每天自动删除超过该天数的截图；0 表示永久保留。
+        description: 0 永久保留；大于 0 时每天自动清理超期截图。
 network:
-  8099/TCP: Web 浏览端口（推荐使用侧边栏 Ingress，无需映射端口）
+  8099/TCP: Web 浏览端口（Ingress 已内置，可不映射）

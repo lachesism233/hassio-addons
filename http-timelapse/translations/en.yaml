@@ -1,49 +1,49 @@
 configuration:
   timezone:
     name: Timezone
-    description: Timezone used for scheduling and file names, e.g. Asia/Shanghai. Leave empty to use the Home Assistant timezone.
+    description: Leave empty to follow the Home Assistant timezone.
   media_root:
     name: Storage root
-    description: Root directory for captures, defaults to /media/timelapse when empty; each source saves to "<root>/<name>" unless overridden.
+    description: Defaults to /media/timelapse; each source saves to "<root>/<name>".
   captures:
     name: Capture sources
-    description: Each source has its own snapshot URL, schedule, storage directory, file name format, retry policy and retention (the default list is empty, add sources manually).
+    description: Each snapshot URL has its own schedule and storage; click Add to create one.
     fields:
       name:
         name: Name
-        description: Source name used in logs and as the default storage directory, e.g. camera1.
+        description: Used in logs and as the default directory name, e.g. camera1.
       url:
         name: Snapshot URL
         description: HTTP endpoint returning a JPEG, e.g. http://<go2rtc host>:1984/api/frame.jpeg?src=camera1
       directory:
         name: Custom directory
-        description: Leave empty for "<storage root>/<name>"; relative paths are based on the storage root, e.g. camera1 or /media/timelapse/camera1.
+        description: Leave empty for "<storage root>/<name>".
       filename_format:
         name: File name format
-        description: Leave empty for the default snap_%Y%m%d_%H%M%S.jpg; supports %Y %m %d %H %M %S.
+        description: Leave empty for snap_%Y%m%d_%H%M%S.jpg.
       strict_schedule_time:
         name: Strict scheduled time
-        description: When enabled the file name time equals the scheduled trigger time exactly (07:00 -> snap_20260914_070000.jpg, even after retries); when disabled the actual save time is used. Manual captures always use the actual time. Enabled by default when unset.
+        description: File name time equals the scheduled time exactly (even after retries); disable to use the actual save time.
       times:
         name: Daily times
-        description: Times of day to capture, 24h HH:MM, multiple entries allowed; editable with a time picker on the gallery Settings page.
+        description: 24h HH:MM, multiple entries; also editable with a time picker on the gallery Settings page.
       interval_minutes:
         name: Interval (minutes)
-        description: Capture every N minutes when greater than 0; 0 disables interval capture.
+        description: Capture every N minutes when greater than 0; works alongside daily times.
       retries:
         name: Retries
         description: Extra attempts after the first failure, default 3.
       retry_wait:
         name: Retry wait (s)
-        description: Seconds to wait between attempts, default 5.
+        description: Seconds between attempts, default 5.
       timeout:
         name: Request timeout (s)
-        description: HTTP request timeout, default 10.
+        description: Per-request timeout, default 10.
       min_size:
         name: Minimum size (bytes)
-        description: Responses smaller than this are rejected, default 1024.
+        description: Smaller responses are rejected, default 1024.
       keep_days:
         name: Keep days
-        description: Delete captures older than N days; 0 keeps everything.
+        description: 0 keeps everything; otherwise captures older than N days are deleted daily.
 network:
-  8099/TCP: Web gallery port (ingress is preferred, mapping is optional)
+  8099/TCP: Web gallery port (ingress is built in, mapping optional)
