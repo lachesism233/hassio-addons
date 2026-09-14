@@ -2,7 +2,7 @@ name: HTTP Timelapse
 version: "0.1.0"
 slug: http_timelapse
 description: Serve timelapse media over HTTP from a shared folder
-url: https://github.com/huangzumings/http-timelapse
+url: https://github.com/lachesism233/http-timelapse
 arch:
   - aarch64
   - amd64
