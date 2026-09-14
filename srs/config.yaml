@@ -1,5 +1,5 @@
 name: SRS 流媒体服务器
-version: "6.0.191"
+version: "6.0.191.1"
 slug: srs
 description: >-
   高性能实时流媒体服务器：OBS/FFmpeg 推流（RTMP/SRT），HLS、HTTP-FLV、WebRTC 多协议播放
@@ -10,10 +10,7 @@ arch:
 startup: application
 boot: auto
 init: false
-ingress: true
-ingress_port: 8080
-panel_icon: mdi:broadcast
-panel_title: SRS 流媒体
+webui: http://[HOST]:[PORT:8080]/
 ports:
   1935/tcp: 1935
   1985/tcp: 1985
