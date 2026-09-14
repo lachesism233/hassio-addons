@@ -34,9 +34,11 @@ Home Assistant 应用（App，旧称 Add-on）仓库。
 
 ## 文档
 
-- [延时摄影 使用说明](http-timelapse/DOCS.md)
-- [Heimdall 使用说明](heimdall/DOCS.md)
-- [SRS 流媒体服务器 使用说明](srs/DOCS.md)
+使用说明为中英双语：
+
+- [HTTP Timelapse 使用说明](http-timelapse/DOCS.md) · [更新日志](http-timelapse/CHANGELOG.md)
+- [Heimdall 使用说明](heimdall/DOCS.md) · [更新日志](heimdall/CHANGELOG.md)
+- [SRS Media Server 使用说明](srs/DOCS.md) · [更新日志](srs/CHANGELOG.md)
 
 ## 说明
 

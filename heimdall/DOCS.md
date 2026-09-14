@@ -1,4 +1,49 @@
-# Heimdall（应用导航面板）
+# Heimdall
+
+**English** | [简体中文](#简体中文) | [Changelog 更新日志](CHANGELOG.md)
+
+The [LinuxServer](https://github.com/linuxserver/Heimdall) build of Heimdall: an application dashboard
+that turns your favourite sites and self-hosted services into icon tiles, with groups, a search bar and
+an icon library. It can serve as your browser start page.
+
+## Quick start
+
+1. Install and start the app (the first start initialises the database, usually 10 seconds to 1 minute depending on the device)
+2. Click the app page's **Open Web UI** button, or go to `http://<Home Assistant host>:10000`
+3. Log in and add tiles: enter a name and a URL, pick an icon
+
+The defaults work out of the box; no option has to be changed.
+
+## Options
+
+| Option | Description | Default |
+| --- | --- | --- |
+| `timezone` | Container timezone; when empty the Home Assistant timezone is used, falling back to UTC | empty (follows HA) |
+| `allow_internal_requests` | Allow Heimdall to make lookup requests to private/reserved IP addresses (needed to fetch titles/icons for internal URLs) | `true` |
+
+> The defaults target pure-LAN setups. If you expose Heimdall to the internet through a reverse proxy, set this to `false` to enable SSRF protection.
+
+## Data and backup
+
+- App data lives in HA's `/addon_configs/<repository id>_heimdall` (mounted as `/config` in the container) and contains the SQLite database, `.env` (APP_KEY), icons and background images
+- The directory is backed up and restored together with the app; uninstalling the app does not delete it
+- On first start the data directory is chowned to `abc` (911) — this is normal
+
+## Access and sidebar
+
+- The app does not use HA ingress (Heimdall cannot be served under a sub-path), so it is always available on the fixed host port **10000**
+- For a sidebar entry, add a **webpage** card to a dashboard with the URL `http://<Home Assistant host>:10000`
+- If port 10000 is taken, open the app's **Network** settings and change the host port
+
+## Troubleshooting
+
+- Check the startup log under HA → Apps → Heimdall → Logs; the normal order is s6 init → nginx/php-fpm
+- The first page load is slow (database migration and seed data run automatically)
+- Changes to `allow_internal_requests` take effect after restarting the app
+
+---
+
+# 简体中文
 
 基于 [LinuxServer](https://github.com/linuxserver/Heimdall) 打包的 Heimdall 镜像：把常用网站与自托管服务集中为图标磁贴的导航面板，支持分组、搜索栏与图标库，可作为浏览器起始页。
 
@@ -27,26 +72,12 @@
 
 ## 访问方式与侧边栏
 
-- 本应用不使用 HA ingress（Heimdall 不支持子路径代理），容器 80 端口固定映射到主机 **10000**
+- 本应用不使用 HA ingress（Heimdall 不支持子路径代理），固定使用主机端口 **10000**
 - 如需侧边栏入口，可在仪表盘中添加「网页」卡片，URL 填 `http://<Home Assistant 地址>:10000`
-- 若 10000 端口被占用，修改本应用 `config.yaml` 中的 `80/tcp: 10000` 后重新安装
-
-## 版本号规则
-
-- 应用版本号与上游 Heimdall 版本保持一致（上游 `2.8.3` 时本应用也是 `2.8.3`）
-- 仅修改打包层而不升级上游时，用第四位递增区分，例如 `2.8.3.1`、`2.8.3.2`
-- 版本号变化是 Home Assistant 识别应用更新的唯一依据，修改后需同步 `build.yaml` 中的镜像 tag
-
-## 升级
-
-1. 查看上游新版本：https://hub.docker.com/r/linuxserver/heimdall/tags
-2. 修改 `build.yaml` 中两个架构的 tag，例如 `arm64v8-2.8.4` 与 `amd64-2.8.4`
-3. 把 `config.yaml` 的 `version` 同步为上游版本，例如 `2.8.4`
-4. 推送后用户在应用商店更新即可；更新会重建镜像，数据与配置不受影响
+- 若 10000 端口被占用，可在应用页面的 **网络** 设置中修改主机端口
 
 ## 故障排查
 
 - 在 HA 的 应用 → Heimdall → 日志 中查看启动日志，正常顺序为 s6 初始化 → nginx/php-fpm 启动
 - 首次打开页面较慢属正常现象（自动执行数据库迁移与种子数据）
-- 若因 AppArmor 导致启动失败，可在 `config.yaml` 中增加 `apparmor: false` 后更新应用
 - `allow_internal_requests` 修改后需重启应用生效

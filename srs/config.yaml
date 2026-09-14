@@ -1,5 +1,5 @@
 name: SRS Media Server
-version: "6.0.191.1"
+version: "6.0.191.2"
 slug: srs
 description: >-
   Realtime media server for Home Assistant: RTMP/SRT ingest from OBS or FFmpeg with HLS, HTTP-FLV and WebRTC playback

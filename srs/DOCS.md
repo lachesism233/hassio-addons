@@ -1,4 +1,98 @@
-# SRS 流媒体服务器
+# SRS Media Server
+
+**English** | [简体中文](#简体中文) | [Changelog 更新日志](CHANGELOG.md)
+
+Realtime media server based on [SRS](https://github.com/ossrs/srs) (6.0 stable): ingest from OBS or
+FFmpeg over RTMP/SRT, play over HLS, HTTP-FLV or WebRTC — handy for bringing a camera or an OBS
+scene into Home Assistant.
+
+## Quick start
+
+1. Install and start the app (the first start takes only a few seconds)
+2. Push from OBS:
+   - Service: **Custom**
+   - Server: `rtmp://<Home Assistant host>:1935/live`
+   - Stream key: `livestream` (the stream name; any name works)
+3. Playback (replace `<HA>` with the Home Assistant host IP or domain):
+
+| Protocol | URL | Latency | Notes |
+| --- | --- | --- | --- |
+| HLS | `http://<HA>:8080/live/livestream.m3u8` | ~10 s | Best compatibility; works in VLC and HA |
+| HTTP-FLV | `http://<HA>:8080/live/livestream.flv` | ~1 s | Needs an FLV-capable player (e.g. HA's go2rtc) |
+| WebRTC | WebRTC player page under `http://<HA>:8080/players/` | <1 s | See the WebRTC section below |
+
+> In HA, put the HLS or HTTP-FLV URL into the go2rtc `streams` configuration, or add a **webpage** card pointing at the built-in player page.
+
+## WebRTC
+
+- In bridge mode SRS auto-detects the container IP, which browsers cannot reach: **set "WebRTC candidate" to the HA host's LAN IP** (see Settings → System → Network, e.g. `192.168.1.10`), save and restart the app
+- Play from the WebRTC page under `http://<HA>:8080/players/`, or connect a WHIP/WHEP client to `http://<HA>:1985/rtc/v1/whep/?app=live&stream=livestream`
+- If UDP is blocked, enable "WebRTC over TCP" and map TCP 8000 to the host
+
+## SRT
+
+Enable "SRT server" and restart; OBS can then push over SRT (more resilient to packet loss):
+
+- URL: `srt://<HA>:10080?streamid=#!::r=live/livestream,m=publish`
+
+## Access
+
+- The app does not use ingress (playback needs ports 8080/1985/8000, which a single-port proxy cannot cover); open `http://<HA>:8080` directly
+- The app page's **Open Web UI** button opens the same address; you can also add a **webpage** card pointing at it
+
+## Options
+
+| Option | Description | Default |
+| --- | --- | --- |
+| `timezone` | Container timezone for log timestamps; empty means UTC | empty |
+| `log_level` | Log level: `trace`/`debug`/`info`/`warn`/`error` | `info` |
+| `webrtc_candidate` | Address advertised in the WebRTC SDP; set to the HA host LAN IP | empty (auto) |
+| `webrtc_tcp_enabled` | Also enable WebRTC over TCP (TCP 8000) | `false` |
+| `srt_enabled` | Enable the SRT ingest server (UDP 10080) | `false` |
+
+## Ports
+
+| Port | Purpose | Notes |
+| --- | --- | --- |
+| 1935/tcp | RTMP ingest | Host port editable on the app page |
+| 1985/tcp | HTTP API | Host port editable on the app page |
+| 8080/tcp | HLS/HTTP-FLV/player pages | Host port editable on the app page (used by "Open Web UI") |
+| 8000/udp | WebRTC media | **Do not remap** (the SDP always advertises port 8000) |
+| 8000/tcp | WebRTC over TCP | Only active when the matching option is enabled |
+| 10080/udp | SRT ingest | Only active when the matching option is enabled |
+
+## Custom SRS configuration
+
+- The default config is generated from the app options; no manual maintenance needed
+- Advanced: put your own `srs.conf` in the host's `/addon_configs/<repository id>_srs/` (mounted as `/addon_config`). On start the app uses it as-is and skips option generation; restart the app after editing
+- Syntax reference: upstream [full.conf](https://github.com/ossrs/srs/blob/v6.0-r1/trunk/conf/full.conf)
+
+## HTTP API examples
+
+```bash
+curl http://<HA>:1985/api/v1/versions
+curl http://<HA>:1985/api/v1/streams
+curl http://<HA>:1985/api/v1/clients
+```
+
+> The API has no authentication by default. Never expose port 1985 to the internet; if you need remote access, put it behind a reverse proxy with access control.
+
+## Data and logs
+
+- App logs: the app page's Logs tab (SRS logs to the container console; HTML is escaped to plain text)
+- HLS segments are generated inside the container and are cleared on restart (normal for live streaming)
+- User data directory: `/addon_configs/<repository id>_srs/`, where a custom `srs.conf` goes
+
+## Troubleshooting
+
+- Push fails: make sure the OBS server is `rtmp://<HA>:1935/live` and the key is just the stream name (no `rtmp://` prefix or app name)
+- Port conflict: change the host ports for 1935/1985/8080 on the app page's Network tab (not 8000/udp)
+- WebRTC fails: verify `webrtc_candidate` is the HA host LAN IP; check ICE candidates and errors in the browser dev tools
+- Check the service: `curl http://<HA>:1985/api/v1/versions` should return version info
+
+---
+
+# 简体中文
 
 基于 [SRS](https://github.com/ossrs/srs)（6.0 稳定版）的实时流媒体服务器：OBS/FFmpeg 推流（RTMP/SRT），HLS、HTTP-FLV、WebRTC 多协议播放，适合把摄像头或 OBS 画面接入 Home Assistant。
 
@@ -59,7 +153,7 @@
 
 ## 自定义 SRS 配置
 
-- 默认配置由应用选项生成，保存在容器内 `/data/srs.conf`
+- 默认配置由应用选项生成，无需手动维护
 - 进阶用法：在主机 `/addon_configs/<仓库标识>_srs/`（容器内挂载为 `/addon_config`）放置 `srs.conf`，应用启动时会完全使用它并跳过选项生成；修改后重启应用生效
 - 配置语法见上游 [full.conf](https://github.com/ossrs/srs/blob/v6.0-r1/trunk/conf/full.conf)
 
@@ -73,22 +167,11 @@ curl http://<HA>:1985/api/v1/clients
 
 > 默认 API 无鉴权，请勿把 1985 端口直接暴露到公网；如需公网访问请经反向代理并自行增加访问控制。
 
-## 版本号规则
-
-- 应用版本与上游稳定版保持一致（上游 `6.0.191` 时本应用也是 `6.0.191`）
-- 仅修改打包层而不升级上游时，用第四位递增区分，例如 `6.0.191.1`，并同步 `build.yaml` 中的镜像 tag
-
-## 升级
-
-1. 查看上游新版本：https://hub.docker.com/r/ossrs/srs/tags
-2. 修改 `build.yaml` 中两个架构的 tag，并把 `config.yaml` 的 `version` 同步为新版本
-3. 推送后用户在应用商店更新即可；更新会重建镜像，应用选项与自定义配置不受影响
-
 ## 数据与日志
 
 - 应用日志：应用页面「日志」标签（SRS 输出到容器控制台，HTML 日志转义为文本显示）
-- HLS 切片默认写入容器内 `/usr/local/srs/objs/nginx/html/live/`，重启后清空（直播场景正常现象）
-- 应用数据目录：`/addon_configs/<仓库标识>_srs/`
+- HLS 切片在容器内生成，重启后清空（直播场景正常现象）
+- 用户数据目录：`/addon_configs/<仓库标识>_srs/`，自定义 `srs.conf` 放在这里
 
 ## 故障排查
 

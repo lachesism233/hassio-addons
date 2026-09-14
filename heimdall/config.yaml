@@ -1,5 +1,5 @@
 name: Heimdall
-version: "2.8.3"
+version: "2.8.3.1"
 slug: heimdall
 description: >-
   Application dashboard with icon tiles for your favourite sites and self-hosted services, with groups, search and an icon library

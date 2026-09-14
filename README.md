@@ -34,9 +34,11 @@ Use this method if the buttons above do not work, for example when Home Assistan
 
 ## Documentation
 
-- [HTTP Timelapse documentation (Simplified Chinese)](http-timelapse/DOCS.md)
-- [Heimdall documentation (Simplified Chinese)](heimdall/DOCS.md)
-- [SRS documentation (Simplified Chinese)](srs/DOCS.md)
+Bilingual (English / Simplified Chinese) documentation:
+
+- [HTTP Timelapse documentation](http-timelapse/DOCS.md) · [changelog](http-timelapse/CHANGELOG.md)
+- [Heimdall documentation](heimdall/DOCS.md) · [changelog](heimdall/CHANGELOG.md)
+- [SRS Media Server documentation](srs/DOCS.md) · [changelog](srs/CHANGELOG.md)
 
 ## Notes
 
