@@ -2,7 +2,7 @@ name: Heimdall
 version: "2.8.3"
 slug: heimdall
 description: >-
-  Heimdall 应用导航面板：把常用网站与自托管服务集中为图标磁贴，支持分组、搜索与图标库
+  Application dashboard with icon tiles for your favourite sites and self-hosted services, with groups, search and an icon library
 url: https://github.com/lachesism233/hassio-addons
 arch:
   - aarch64

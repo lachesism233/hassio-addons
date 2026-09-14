@@ -1,7 +1,7 @@
-name: 延时摄影
+name: HTTP Timelapse
 version: "1.0.0"
 slug: http_timelapse
-description: 无人值守定时抓拍 HTTP 快照（go2rtc/JPEG），自动校验与重试、多源独立调度，内置浏览面板
+description: Unattended scheduled JPEG snapshots from go2rtc/HTTP sources with validation, retries, per-source schedules and a built-in gallery
 url: https://github.com/lachesism233/hassio-addons
 arch:
   - aarch64
@@ -12,7 +12,7 @@ init: false
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:camera-timer
-panel_title: 延时摄影
+panel_title: HTTP Timelapse
 ports:
   8099/tcp: 8099
 ports_description:

@@ -1,8 +1,8 @@
-name: SRS 流媒体服务器
+name: SRS Media Server
 version: "6.0.191.1"
 slug: srs
 description: >-
-  高性能实时流媒体服务器：OBS/FFmpeg 推流（RTMP/SRT），HLS、HTTP-FLV、WebRTC 多协议播放
+  Realtime media server for Home Assistant: RTMP/SRT ingest from OBS or FFmpeg with HLS, HTTP-FLV and WebRTC playback
 url: https://github.com/lachesism233/hassio-addons
 arch:
   - aarch64

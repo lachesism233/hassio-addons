@@ -12,23 +12,25 @@ Home Assistant app (formerly add-on) repository.
 
 | App | Description |
 | --- | --- |
-| [HTTP Timelapse (延时摄影)](http-timelapse/) | Scheduled JPEG capture from go2rtc/HTTP sources with validation, retries, per-source schedules and a built-in gallery |
+| [HTTP Timelapse](http-timelapse/) | Scheduled JPEG capture from go2rtc/HTTP sources with validation, retries, per-source schedules and a built-in gallery |
 | [Heimdall](heimdall/) | Application dashboard with icon tiles for your favourite sites and self-hosted services |
-| [SRS (流媒体服务器)](srs/) | Realtime media server for Home Assistant: RTMP/SRT ingest from OBS or FFmpeg with HLS, HTTP-FLV and WebRTC playback |
+| [SRS Media Server](srs/) | Realtime media server for Home Assistant: RTMP/SRT ingest from OBS or FFmpeg with HLS, HTTP-FLV and WebRTC playback |
 
 ## Installation
 
 ### One-click (recommended)
 
 1. Click the **Add app repository to Home Assistant** button above and confirm — the repository URL is pre-filled in the app store
-2. Click the **Show app on Home Assistant** button, or search for **HTTP Timelapse** in the app store, and install it
+2. Click the **Show app on Home Assistant** button above, then install the app from its page
 
 ### Manual
 
-1. In Home Assistant, go to **Settings → Apps → Install app**
-2. Open the menu (⋮) → **Repositories**
-3. Add `https://github.com/lachesism233/hassio-addons`
-4. Install **延时摄影 (HTTP Timelapse)** and start it
+Use this method if the buttons above do not work, for example when Home Assistant is not reachable through `my.home-assistant.io`:
+
+1. In Home Assistant, go to **Settings → Apps** and select **Install app**
+2. In the top-right corner, open the three-dot menu (⋮) and select **Repositories**
+3. Paste `https://github.com/lachesism233/hassio-addons` and select **Add**, then close the dialog
+4. Find the app you want — for example **HTTP Timelapse** — and install it
 
 ## Documentation
 
