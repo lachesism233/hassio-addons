@@ -7,20 +7,23 @@ configuration:
     description: 抓拍根目录，留空使用默认 /media/timelapse；每个源未自定义目录时保存到“根目录/名称”。
   captures:
     name: 抓拍源列表
-    description: 每个源独立配置抓拍地址、时间点/间隔、存储目录、文件名、重试与保留策略。
+    description: 每个源独立配置抓拍地址、时间点/间隔、存储目录、文件名、重试与保留策略（默认列表为空，需要手动添加）。
     fields:
       name:
         name: 名称
-        description: 源名称，用于日志和默认存储目录，例如 Tuya。
+        description: 源名称，用于日志和默认存储目录，例如 camera1。
       url:
         name: 抓拍地址
-        description: 返回 JPEG 图片的 HTTP 地址，例如 http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
+        description: 返回 JPEG 图片的 HTTP 地址，例如 http://<go2rtc 地址>:1984/api/frame.jpeg?src=camera1
       directory:
         name: 自定义存储目录
-        description: 留空使用“存储根目录/名称”；相对路径基于存储根目录，例如 Tuya 或 /media/timelapse/Tuya。
+        description: 留空使用“存储根目录/名称”；相对路径基于存储根目录，例如 camera1 或 /media/timelapse/camera1。
       filename_format:
         name: 文件名格式
-        description: 留空使用默认 snapshot_%Y%m%d_%H%M%S.jpg；支持 %Y %m %d %H %M %S 等时间格式符，时间为计划触发时间。
+        description: 留空使用默认 snap_%Y%m%d_%H%M%S.jpg；支持 %Y %m %d %H %M %S 等时间格式符。
+      strict_schedule_time:
+        name: 严格计划时间命名
+        description: 开启时文件名中的时间严格等于计划触发时间（如设定 07:00 → snap_20260914_070000.jpg，重试也不变）；关闭则使用实际保存时间；手动抓拍始终使用实际时间。未设置时默认开启。
       times:
         name: 每日时间点
         description: 每天抓拍的时刻，24 小时制 HH:MM，可添加多条；也可在浏览面板的“设置”页用时间选择器编辑。

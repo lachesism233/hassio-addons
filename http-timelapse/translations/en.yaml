@@ -7,20 +7,23 @@ configuration:
     description: Root directory for captures, defaults to /media/timelapse when empty; each source saves to "<root>/<name>" unless overridden.
   captures:
     name: Capture sources
-    description: Each source has its own snapshot URL, schedule, storage directory, file name format, retry policy and retention.
+    description: Each source has its own snapshot URL, schedule, storage directory, file name format, retry policy and retention (the default list is empty, add sources manually).
     fields:
       name:
         name: Name
-        description: Source name used in logs and as the default storage directory.
+        description: Source name used in logs and as the default storage directory, e.g. camera1.
       url:
         name: Snapshot URL
-        description: HTTP endpoint returning a JPEG, e.g. http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
+        description: HTTP endpoint returning a JPEG, e.g. http://<go2rtc host>:1984/api/frame.jpeg?src=camera1
       directory:
         name: Custom directory
-        description: Leave empty for "<storage root>/<name>"; relative paths are based on the storage root, e.g. Tuya or /media/timelapse/Tuya.
+        description: Leave empty for "<storage root>/<name>"; relative paths are based on the storage root, e.g. camera1 or /media/timelapse/camera1.
       filename_format:
         name: File name format
-        description: Leave empty for the default snapshot_%Y%m%d_%H%M%S.jpg; supports %Y %m %d %H %M %S. The time is the scheduled trigger time.
+        description: Leave empty for the default snap_%Y%m%d_%H%M%S.jpg; supports %Y %m %d %H %M %S.
+      strict_schedule_time:
+        name: Strict scheduled time
+        description: When enabled the file name time equals the scheduled trigger time exactly (07:00 -> snap_20260914_070000.jpg, even after retries); when disabled the actual save time is used. Manual captures always use the actual time. Enabled by default when unset.
       times:
         name: Daily times
         description: Times of day to capture, 24h HH:MM, multiple entries allowed; editable with a time picker on the gallery Settings page.

@@ -5,10 +5,11 @@
 
 ## 功能
 
-- **多抓拍源**：可添加任意数量的 URL，每个源独立配置
+- **多抓拍源**：可添加任意数量的 URL，每个源独立配置（默认无抓拍源，安装后自行添加）
 - **多种触发**：每日时间点（HH:MM，可多条，可在面板用时间选择器编辑）和/或固定间隔（例如每 5 分钟）
 - **可靠性**：请求超时、失败自动重试（次数与等待时间可配）、HTTP 状态码与 JPEG 文件头校验
-- **存储**：成功才写盘，默认文件名 `snapshot_%Y%m%d_%H%M%S.jpg`，原子写入，重名自动加后缀
+- **存储**：成功才写盘，默认文件名 `snap_%Y%m%d_%H%M%S.jpg`，原子写入，重名自动加后缀
+- **严格计划时间命名**：可选开关，文件名时间严格等于计划触发时间（重试也不变）或使用实际保存时间
 - **latest.jpg**：每个源目录自动维护最新截图，供仪表盘展示
 - **自动清理**：每个源可选保留天数，过期截图每日自动删除（默认关闭）
 - **可视化配置**：应用配置页配置参数；浏览面板的「设置」页提供时间选择器
@@ -22,16 +23,17 @@
 
 ## 配置
 
-打开应用的 **配置** 标签页，可直接增删抓拍源。等价的 YAML 示例（自定义目录与文件名格式默认留空）：
+安装后默认没有抓拍源。打开应用的 **配置** 标签页，点击“添加”新建抓拍源；等价的 YAML 示例：
 
 ```yaml
-timezone: Asia/Shanghai
+timezone: ""
 media_root: ""
 captures:
-  - name: Tuya
-    url: http://192.168.2.10:1984/api/frame.jpeg?src=Tuya
+  - name: camera1
+    url: "http://<go2rtc 地址>:1984/api/frame.jpeg?src=camera1"
     directory: ""
     filename_format: ""
+    strict_schedule_time: true
     times:
       - "07:00"
       - "12:00"
@@ -48,7 +50,7 @@ captures:
 
 | 配置项 | 说明 | 默认值 |
 | --- | --- | --- |
-| `timezone` | 调度与文件命名的时区；留空自动读取 Home Assistant 时区 | `Asia/Shanghai` |
+| `timezone` | 调度与文件命名的时区；留空自动读取 Home Assistant 时区 | 留空（跟随 HA） |
 | `media_root` | 抓拍存储根目录（同时是浏览面板根目录）；**留空使用默认值** | `/media/timelapse` |
 
 ### 抓拍源配置项（`captures` 列表中的每一项）
@@ -58,7 +60,8 @@ captures:
 | `name` | 是 | 源名称，用于日志和默认存储目录 | - |
 | `url` | 是 | 返回 JPEG 的抓拍地址 | - |
 | `directory` | 否 | 自定义存储目录，**留空使用“存储根目录/名称”**；相对路径基于存储根目录 | 空 |
-| `filename_format` | 否 | 文件名格式，**留空使用默认值**；时间部分为计划触发时间 | `snapshot_%Y%m%d_%H%M%S.jpg` |
+| `filename_format` | 否 | 文件名格式，**留空使用默认值** | `snap_%Y%m%d_%H%M%S.jpg` |
+| `strict_schedule_time` | 否 | 严格计划时间命名，见下节；未设置时按开启处理 | 开启 |
 | `times` | 否 | 每日抓拍时间点，24 小时制 `HH:MM`，可添加多条 | 无 |
 | `interval_minutes` | 否 | 大于 0 时按固定间隔抓拍（分钟） | `0`（关闭） |
 | `retries` | 否 | 首次失败后的额外重试次数 | `3` |
@@ -69,6 +72,22 @@ captures:
 
 > `times` 与 `interval_minutes` 至少配置一个，否则该源不会抓拍（启动日志会有提示）。
 
+## 文件名与计划时间
+
+默认文件名格式为 `snap_%Y%m%d_%H%M%S.jpg`（可用 `filename_format` 自定义，时间为计划触发时间）：
+
+| 严格计划时间命名 | 触发方式 | 文件名中的时间 |
+| --- | --- | --- |
+| 开启（推荐默认） | 每日时间点 `07:00` | 严格 `07:00:00`：`snap_20260914_070000.jpg`，即使重试延迟到 07:05 才成功也不改名 |
+| 开启 | 固定间隔 5 分钟（12:05 档） | 严格 `12:05:00`：`snap_20260914_120500.jpg` |
+| 关闭 | 任意定时触发 | 图片实际保存时间 |
+| 任意 | 手动「立即抓拍」 | 图片实际保存时间 |
+
+> 在应用配置页新增抓拍源时，`strict_schedule_time` 开关不勾选即为关闭（使用实际时间）；
+> 需要严格计划时间命名的延时摄影场景请勾选它。
+
+若同一秒内产生多张（例如重名），自动命名为 `snap_20260914_071500-1.jpg`、`-2.jpg`……
+
 ## go2rtc 抓拍地址
 
 go2rtc 的单帧 JPEG 接口格式为：
@@ -76,8 +95,6 @@ go2rtc 的单帧 JPEG 接口格式为：
 ```
 http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
 ```
-
-例如：`http://192.168.2.10:1984/api/frame.jpeg?src=Tuya`
 
 > URL 中含 `?`，在 YAML 中建议使用引号包裹。
 
@@ -89,25 +106,15 @@ http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
 4. 全部失败会记录错误日志，不影响之后的调度
 5. 成功的文件按 `filename_format` 命名，并更新同目录的 `latest.jpg`
 
-**文件名使用计划触发时间，而不是实际完成时间**：
-
-| 触发方式 | 文件名中的时间 |
-| --- | --- |
-| 每日时间点 `07:00`（实际在 07:00:05 触发、重试到 07:01 才成功） | `07:00:00` |
-| 固定间隔 5 分钟（12:05 档，实际在 12:05:03 触发） | `12:05:00` |
-| 手动「立即抓拍」 | 实际抓拍时间 |
-
-若同一秒内产生多张（例如重名），自动命名为 `snapshot_20260914_071500-1.jpg`、`-2.jpg`……
-
 ## 文件与目录
 
 ```
 /media/timelapse/              <- media_root 默认值（留空时使用）
-├── Tuya/
-│   ├── snapshot_20260914_071500.jpg
-│   ├── snapshot_20260914_120000.jpg
+├── camera1/
+│   ├── snap_20260914_070000.jpg
+│   ├── snap_20260914_120000.jpg
 │   └── latest.jpg             <- 最新一张，方便仪表盘引用
-└── Camera2/
+└── camera2/
     └── ...
 ```
 
@@ -119,7 +126,7 @@ http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
 
 ```yaml
 type: picture
-image: http://<Home Assistant 地址>:8099/Tuya/latest.jpg
+image: http://<Home Assistant 地址>:8099/camera1/latest.jpg
 ```
 
 `latest.jpg` 响应带 `Cache-Control: no-store`，浏览器不会缓存旧画面。
@@ -138,8 +145,7 @@ image: http://<Home Assistant 地址>:8099/Tuya/latest.jpg
 2. 每个源显示一组时间选择器，可 **添加时间点 / 删除**
 3. 点击 **保存并重启**：时间点写入应用配置，应用自动重启后生效，页面会自动等待并刷新
 
-> 设置页只编辑每日时间点；URL、目录、重试等参数仍在应用配置页修改。
-> 保存需要应用能调用 Supervisor API（正常安装即支持）；页面短暂无法访问属于重启过程。
+> 设置页只编辑每日时间点；URL、目录、文件名、严格开关等参数仍在应用配置页修改。
 
 ## 调试：手动抓拍
 
@@ -152,11 +158,11 @@ image: http://<Home Assistant 地址>:8099/Tuya/latest.jpg
 也可以通过 HTTP 接口调用（返回 JSON）：
 
 ```bash
-curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=Tuya"
+curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=camera1"
 curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=*"
 ```
 
-成功返回 `{"ok": true, "source": "Tuya", "file": "snapshot_20260914_071500.jpg"}`，
+成功返回 `{"ok": true, "source": "camera1", "file": "snap_20260914_070000.jpg"}`，
 失败返回 `{"ok": false, "error": "..."}`。
 
 ## 排错
@@ -165,6 +171,7 @@ curl -X POST "http://<Home Assistant 地址>:8099/api/capture?name=*"
 - **一直失败**：检查 go2rtc 是否可访问、`src` 名称是否正确、URL 是否需要引号
 - **没有生成图片**：确认 `times` 或 `interval_minutes` 已配置，且时间格式为 `HH:MM`
 - **时间不对**：检查 `timezone`，留空时会自动使用 Home Assistant 的时区
+- **文件名用了实际时间**：该源的 `strict_schedule_time` 开关未开启
 - **设置页保存失败**：查看日志中 `settings` 与 `web` 的记录；确认应用未被限制调用 Supervisor API
 
 ## 说明

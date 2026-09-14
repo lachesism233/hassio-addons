@@ -10,7 +10,7 @@ LOGGER = logging.getLogger("capture")
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
 JPEG_SOI = b"\xff\xd8\xff"
 JPEG_EOI = b"\xff\xd9"
-DEFAULT_FILENAME_FORMAT = "snapshot_%Y%m%d_%H%M%S.jpg"
+DEFAULT_FILENAME_FORMAT = "snap_%Y%m%d_%H%M%S.jpg"
 MAX_FILENAME_LENGTH = 120
 
 
@@ -31,14 +31,16 @@ class Source:
     min_size: int = 1024
     keep_days: int = 0
     filename_format: str = DEFAULT_FILENAME_FORMAT
+    strict_schedule_time: bool = True
 
     def describe(self):
         times = ",".join(self.times) if self.times else "-"
         interval = f"{self.interval_minutes}m" if self.interval_minutes > 0 else "-"
         keep = f"{self.keep_days}d" if self.keep_days > 0 else "forever"
+        strict = "on" if self.strict_schedule_time else "off"
         return (
             f"{self.name}: times={times} interval={interval} dir={self.directory} "
-            f"filename={self.filename_format} retries={self.retries} "
+            f"filename={self.filename_format} strict={strict} retries={self.retries} "
             f"retry_wait={self.retry_wait}s timeout={self.timeout}s "
             f"min_size={self.min_size}B keep={keep}"
         )
@@ -56,6 +58,19 @@ def as_int(config, key, default):
     except (TypeError, ValueError):
         LOGGER.warning("invalid value for '%s': %r, using %s", key, value, default)
         return default
+
+
+def as_bool(config, key, default):
+    value = pick(config, key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in ("1", "true", "yes", "on"):
+            return True
+        if text in ("0", "false", "no", "off", ""):
+            return False
+    return bool(value)
 
 
 def sanitize_name(name):
@@ -125,6 +140,7 @@ def build_sources(raw_captures, media_root, logger=None):
             min_size=max(0, as_int(raw, "min_size", 1024)),
             keep_days=max(0, as_int(raw, "keep_days", 0)),
             filename_format=filename_format,
+            strict_schedule_time=as_bool(raw, "strict_schedule_time", True),
         )
         if not source.times and source.interval_minutes <= 0:
             logger.warning("%s has no daily times and no interval, it will never capture", name)

@@ -74,6 +74,8 @@ class Scheduler(threading.Thread):
                             slot * source.interval_minutes * 60, tz=self.tzinfo
                         )
             if reasons:
+                if not source.strict_schedule_time:
+                    when = None
                 self._submit(source, reasons, when)
 
         self._maybe_cleanup(now)
