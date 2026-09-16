@@ -2,6 +2,24 @@
 
 All notable changes to the HTTP Timelapse app. / HTTP Timelapse 应用的版本变更记录。
 
+## 1.3.0 - 2026-09-17
+
+**Highlights 本次亮点**
+
+- **Leaner storage**: `latest.jpg` is gone — the newest frame is resolved on the fly, and a stable virtual URL keeps dashboards working.
+- **A more comfortable gallery**: larger thumbnails on desktop, a featured "Latest capture" tile, and an "All" page size that pairs with lazy loading.
+- **Clearer configuration**: rewritten option descriptions with examples and documented value ranges; the retry limit is raised to 50.
+
+- **更精简的存储**：不再生成 `latest.jpg`，最新画面即时定位，稳定的虚拟地址让仪表盘照常使用。
+- **更舒适的浏览**：桌面端缩略图更大，「最新抓拍」加大展示，「每页」新增「全部」并与懒加载配合。
+- **更清晰的配置**：重写选项说明并补充示例与取值范围，重试上限提升至 50。
+
+**Upgrade notes 升级说明**
+
+- Dashboard cards that used `http://<host>:8099/<source>/latest.jpg` should switch to `http://<host>:8099/latest/<source>.jpg`.
+
+- 仪表盘若使用 `http://<主机>:8099/<源名>/latest.jpg`，请改为 `http://<主机>:8099/latest/<源名>.jpg`。
+
 ## 1.2.0 - 2026-09-16
 
 - The web interface follows the browser language: Simplified Chinese for Chinese browsers, English otherwise.
