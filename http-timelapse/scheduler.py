@@ -1,9 +1,11 @@
 import logging
+import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, time as dtime
+from pathlib import Path
 
-from capture import capture_source, cleanup_source
+from capture import capture_source, cleanup_source, find_latest_file
 
 LOGGER = logging.getLogger("scheduler")
 
@@ -24,6 +26,8 @@ class Scheduler(threading.Thread):
         self._fired = set()
         self._slots = {}
         self._cleanup_date = None
+        self._latest = {}
+        self._latest_lock = threading.Lock()
 
     @staticmethod
     def _slot(now, source):
@@ -34,6 +38,9 @@ class Scheduler(threading.Thread):
         for source in self.sources:
             if source.interval_minutes > 0:
                 self._slots[source.name] = self._slot(now, source)
+            item = find_latest_file(source.directory)
+            if item is not None:
+                self._latest[source.name] = item
             LOGGER.info("source ready -> %s", source.describe())
 
         LOGGER.info("scheduler started, ticking every %ss", TICK_SECONDS)
@@ -97,13 +104,39 @@ class Scheduler(threading.Thread):
         try:
             LOGGER.info("%s capture triggered (%s)", source.name, ", ".join(reasons))
             moment = when or datetime.now(self.tzinfo)
-            return capture_source(source, moment, self.stop_event, LOGGER)
+            path = capture_source(source, moment, self.stop_event, LOGGER)
+            if path is not None:
+                self._remember_latest(source, path)
+            return path
         except Exception:
             LOGGER.exception("%s capture crashed", source.name)
             return None
         finally:
             with self._lock:
                 self._busy.discard(source.name)
+
+    def _remember_latest(self, source, path):
+        try:
+            stat = os.stat(path)
+        except OSError:
+            return
+        with self._latest_lock:
+            self._latest[source.name] = {
+                "name": Path(path).name,
+                "mtime": stat.st_mtime,
+                "size": stat.st_size,
+            }
+
+    def latest_item(self, source):
+        with self._latest_lock:
+            item = self._latest.get(source.name)
+        if item is not None and (source.directory / item["name"]).is_file():
+            return item
+        item = find_latest_file(source.directory)
+        if item is not None:
+            with self._latest_lock:
+                self._latest[source.name] = item
+        return item
 
     def _maybe_cleanup(self, now):
         day = now.strftime("%Y-%m-%d")

@@ -4,7 +4,7 @@ configuration:
     description: Leave empty to follow the Home Assistant timezone.
   media_root:
     name: Storage root
-    description: Defaults to /media/timelapse; each source saves to "<root>/<name>".
+    description: Root folder for all captures, e.g. /media/timelapse. A source saves to "<root>/<name>" unless it sets a custom directory, e.g. /media/timelapse/camera1.
   captures:
     name: Capture sources
     description: Each snapshot URL has its own schedule and storage; click Add to create one.
@@ -17,33 +17,33 @@ configuration:
         description: HTTP endpoint returning a JPEG, e.g. http://<go2rtc host>:1984/api/frame.jpeg?src=camera1
       directory:
         name: Custom directory
-        description: Leave empty for "<storage root>/<name>".
+        description: Optional. Empty means "<storage root>/<name>", e.g. /media/timelapse/camera1. A relative path is created under the storage root, e.g. upstairs/camera1; an absolute path such as /share/timelapse/camera1 is used as-is and must be inside a mapped folder (/media or /share).
       filename_format:
         name: File name format
-        description: Leave empty for snap_%Y%m%d_%H%M%S.jpg.
+        description: Leave empty for snap_%Y%m%d_%H%M%S.jpg (strftime pattern; the result is truncated to 120 characters).
       strict_schedule_time:
         name: Strict scheduled time
         description: File name time equals the scheduled time exactly (even after retries); disable to use the actual save time.
       times:
         name: Daily times
-        description: 24h HH:MM, multiple entries; also editable with a time picker on the gallery Settings page.
+        description: 24h HH:MM (00:00-23:59), multiple entries; also editable with a time picker on the gallery Settings page.
       interval_minutes:
         name: Interval (minutes)
-        description: Capture every N minutes when greater than 0; works alongside daily times.
+        description: 0-1440. When greater than 0, capture every N minutes; works alongside daily times.
       retries:
         name: Retries
-        description: Extra attempts after the first failure, default 3.
+        description: Extra attempts after the first failure, 0-50, default 3; the limit keeps a failing source from occupying the scheduler indefinitely.
       retry_wait:
         name: Retry wait (s)
-        description: Seconds between attempts, default 5.
+        description: Seconds between attempts, 1-600, default 5.
       timeout:
         name: Request timeout (s)
-        description: Per-request timeout, default 10.
+        description: Per-request timeout, 1-300, default 10.
       min_size:
         name: Minimum size (bytes)
-        description: Smaller responses are rejected, default 1024.
+        description: Smaller responses are rejected, 0 or more, default 1024.
       keep_days:
         name: Keep days
-        description: 0 keeps everything; otherwise captures older than N days are deleted daily.
+        description: 0-3650; 0 keeps everything, otherwise captures older than N days are deleted daily.
 network:
   8099/TCP: Web gallery port (ingress is built in, mapping optional)

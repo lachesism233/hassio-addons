@@ -10,7 +10,7 @@ with the scheduled time in the file name — built for unattended long-term runs
 - **Timelapse**: capture one frame every 5 minutes or every minute, combine them into a video later
 - **Regular archive**: record the scene at fixed times of day (morning, noon, evening)
 - **Evidence**: retry automatically when the network or the video service is flaky, so frames are rarely lost
-- **Live view**: every source keeps a `latest.jpg` that can be shown on a dashboard
+- **Live view**: a stable URL always serves the newest frame of a source, ready for a dashboard
 
 ## Quick start
 
@@ -44,22 +44,33 @@ Any HTTP endpoint that returns a JPEG directly works; URLs contain `?`, so quote
 
 ### Per capture source
 
-| Option | Description | Default |
-| --- | --- | --- |
-| `name` | Source name (required) | - |
-| `url` | Snapshot URL (required) | - |
-| `times` | Daily times `HH:MM`, multiple entries | none |
-| `interval_minutes` | Capture every N minutes; works alongside daily times | `0` (off) |
-| `directory` | Custom directory | empty → `<root>/<name>` |
-| `filename_format` | File name format | `snap_%Y%m%d_%H%M%S.jpg` |
-| `strict_schedule_time` | Name files with the scheduled time | on |
-| `retries` | Extra attempts after a failure | `3` |
-| `retry_wait` | Seconds to wait between attempts | `5` |
-| `timeout` | Per-request timeout in seconds | `10` |
-| `min_size` | Responses smaller than this many bytes are rejected | `1024` |
-| `keep_days` | Delete captures older than N days; 0 keeps everything | `0` |
+| Option | Description | Default | Range |
+| --- | --- | --- | --- |
+| `name` | Source name (required) | - | - |
+| `url` | Snapshot URL (required) | - | - |
+| `times` | Daily times `HH:MM`, multiple entries | none | `00:00`–`23:59` |
+| `interval_minutes` | Capture every N minutes; works alongside daily times | `0` (off) | `0`–`1440` |
+| `directory` | Save folder, see "Save location" below | empty → `<root>/<name>` | relative or absolute path |
+| `filename_format` | File name format (strftime pattern) | `snap_%Y%m%d_%H%M%S.jpg` | result truncated to 120 characters |
+| `strict_schedule_time` | Name files with the scheduled time | on | on / off |
+| `retries` | Extra attempts after a failure | `3` | `0`–`50` |
+| `retry_wait` | Seconds to wait between attempts | `5` | `1`–`600` |
+| `timeout` | Per-request timeout in seconds | `10` | `1`–`300` |
+| `min_size` | Responses smaller than this many bytes are rejected | `1024` | `0` or more |
+| `keep_days` | Delete captures older than N days; 0 keeps everything | `0` | `0`–`3650` |
 
 > Set at least one of `times` and `interval_minutes`, otherwise the source never captures automatically.
+>
+> Numeric options are validated by the app configuration schema. Retries stop at 50 so that a
+> misconfigured source cannot occupy the scheduler for an unbounded time.
+
+### Save location
+
+Each source writes into its own folder:
+
+- **Default**: `<storage root>/<name>`. With `media_root: /media/timelapse` and `name: camera1`, files go to `/media/timelapse/camera1`.
+- **Relative `directory`**: created under the storage root, e.g. `upstairs/camera1` → `/media/timelapse/upstairs/camera1`.
+- **Absolute `directory`**: used as-is, e.g. `/share/timelapse/camera1`. The folder must live inside a mapped folder (`/media` or `/share`) to be writable.
 
 ## File names and time
 
@@ -80,9 +91,9 @@ Open the gallery from the sidebar **HTTP Timelapse** (or directly via `http://<H
 - **Capture browser** (one page per source):
   - grid/list view toggle, remembered per browser
   - sort by time, file name or size, each in both directions
-  - 30 / 60 / 120 items per page
+  - 30 / 60 / 120 / All items per page; All renders the complete list and relies on lazy loading
   - grid images are loaded lazily, only when they scroll into view
-  - `latest.jpg` is pinned at the top, outside sorting and paging
+  - the newest capture is featured in a larger tile above the list, outside sorting and paging
   - click an image to open the built-in lightbox: `←` / `→` to switch, `Esc` to close, or open the original in a new tab
   - a back-to-home link returns to the gallery
 - The web interface follows the browser language: Simplified Chinese for Chinese browsers, English otherwise
@@ -91,8 +102,12 @@ Open the gallery from the sidebar **HTTP Timelapse** (or directly via `http://<H
 
 ```yaml
 type: picture
-image: http://<Home Assistant host>:8099/camera1/latest.jpg
+image: http://<Home Assistant host>:8099/latest/camera1.jpg
 ```
+
+`latest/camera1.jpg` is a virtual URL: nothing is written to disk, the app resolves the
+newest capture of that source on every request. It returns 404 until the source has
+captured at least once.
 
 ## Directory layout
 
@@ -100,8 +115,7 @@ image: http://<Home Assistant host>:8099/camera1/latest.jpg
 /media/timelapse/              <- storage root (/media is mapped)
 ├── camera1/
 │   ├── snap_20260914_070000.jpg
-│   ├── snap_20260914_120000.jpg
-│   └── latest.jpg             <- most recent capture
+│   └── snap_20260914_120000.jpg
 └── camera2/
 ```
 
@@ -117,7 +131,8 @@ image: http://<Home Assistant host>:8099/camera1/latest.jpg
 ## Notes
 
 - The app can write to the Home Assistant `media` and `share` folders; captures default to `/media/timelapse`
-- Cleanup only touches each source's own directory; `latest.jpg` is never deleted
+- Captures are written atomically (temp file + rename), so partial downloads never end up in the gallery
+- Cleanup only touches each source's own directory
 
 ---
 
@@ -131,7 +146,7 @@ image: http://<Home Assistant host>:8099/camera1/latest.jpg
 - **延时摄影**：每 5 分钟、每 1 分钟抓拍一帧，后期合成延时视频
 - **定期留档**：每天固定时刻（如早中晚）各记录一张现场画面
 - **监控取证**：网络波动或视频服务异常时自动重试，尽量不丢帧
-- **实时展示**：每个源维护 `latest.jpg`，可在仪表盘显示最新画面
+- **实时展示**：通过稳定地址始终返回某源的最新画面，可用于仪表盘
 
 ## 快速开始
 
@@ -165,22 +180,32 @@ http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
 
 ### 每个抓拍源
 
-| 配置项 | 说明 | 默认值 |
-| --- | --- | --- |
-| `name` | 源名称（必填） | - |
-| `url` | 抓拍地址（必填） | - |
-| `times` | 每日时间点 `HH:MM`，可多条 | 无 |
-| `interval_minutes` | 按固定间隔抓拍（分钟），与时间点可同时使用 | `0`（关闭） |
-| `directory` | 自定义保存目录 | 留空即 `根目录/名称` |
-| `filename_format` | 文件名格式 | `snap_%Y%m%d_%H%M%S.jpg` |
-| `strict_schedule_time` | 严格计划时间命名 | 开启 |
-| `retries` | 失败后的额外重试次数 | `3` |
-| `retry_wait` | 重试等待秒数 | `5` |
-| `timeout` | 单次请求超时秒数 | `10` |
-| `min_size` | 小于该字节数的响应视为无效 | `1024` |
-| `keep_days` | 超过天数自动清理，0 永久保留 | `0` |
+| 配置项 | 说明 | 默认值 | 取值范围 |
+| --- | --- | --- | --- |
+| `name` | 源名称（必填） | - | - |
+| `url` | 抓拍地址（必填） | - | - |
+| `times` | 每日时间点 `HH:MM`，可多条 | 无 | `00:00`–`23:59` |
+| `interval_minutes` | 按固定间隔抓拍（分钟），与时间点可同时使用 | `0`（关闭） | `0`–`1440` |
+| `directory` | 自定义保存目录，见下方「保存位置规则」 | 留空即 `<根目录>/<名称>` | 相对或绝对路径 |
+| `filename_format` | 文件名格式（strftime） | `snap_%Y%m%d_%H%M%S.jpg` | 超长截断到 120 字符 |
+| `strict_schedule_time` | 严格计划时间命名 | 开启 | 开启 / 关闭 |
+| `retries` | 失败后的额外重试次数 | `3` | `0`–`50` |
+| `retry_wait` | 重试等待秒数 | `5` | `1`–`600` |
+| `timeout` | 单次请求超时秒数 | `10` | `1`–`300` |
+| `min_size` | 小于该字节数的响应视为无效 | `1024` | `0` 或更大 |
+| `keep_days` | 超过天数自动清理，0 永久保留 | `0` | `0`–`3650` |
 
 > `times` 与 `interval_minutes` 至少填一个，否则该源不会自动抓拍。
+>
+> 数值项由应用配置模式校验；重试次数上限为 50，避免故障源长期占用调度器。
+
+### 保存位置规则
+
+每个源写入自己的目录：
+
+- **默认**：`<存储根目录>/<名称>`。`media_root` 为 `/media/timelapse`、`name` 为 `camera1` 时保存到 `/media/timelapse/camera1`。
+- **相对 `directory`**：基于存储根创建，如 `upstairs/camera1` → `/media/timelapse/upstairs/camera1`。
+- **绝对 `directory`**：原样使用，如 `/share/timelapse/camera1`；目录需位于已映射的 `/media` 或 `/share` 内才可写入。
 
 ## 文件名与时间
 
@@ -201,9 +226,9 @@ http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
 - **抓拍浏览页**（每个源一个页面）：
   - 网格 / 列表视图切换，按浏览器记忆偏好
   - 按时间、文件名或大小排序，各支持正反序
-  - 每页 30 / 60 / 120 张
+  - 每页 30 / 60 / 120 / 全部；「全部」一次渲染完整列表，依赖懒加载
   - 网格图片懒加载，滚动到可视区域才会下载
-  - `latest.jpg` 置顶「最新抓拍」，不参与排序与分页
+  - 「最新抓拍」用更大的卡片置于列表上方，不参与排序与分页
   - 点击图片打开内置灯箱：`←` / `→` 切换、`Esc` 关闭，也可在新标签页打开原图
   - 「返回首页」链接回到浏览面板
 - 网页界面跟随浏览器语言：中文浏览器显示简体中文，其他默认英文
@@ -212,8 +237,11 @@ http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
 
 ```yaml
 type: picture
-image: http://<Home Assistant 地址>:8099/camera1/latest.jpg
+image: http://<Home Assistant 地址>:8099/latest/camera1.jpg
 ```
+
+`latest/camera1.jpg` 是虚拟地址：不会写入任何文件，应用在每次请求时定位该源的最新一张。
+源尚未抓拍过时该地址返回 404。
 
 ## 目录结构
 
@@ -221,8 +249,7 @@ image: http://<Home Assistant 地址>:8099/camera1/latest.jpg
 /media/timelapse/              <- 存储根目录（/media 已映射）
 ├── camera1/
 │   ├── snap_20260914_070000.jpg
-│   ├── snap_20260914_120000.jpg
-│   └── latest.jpg             <- 最新一张
+│   └── snap_20260914_120000.jpg
 └── camera2/
 ```
 
@@ -238,4 +265,5 @@ image: http://<Home Assistant 地址>:8099/camera1/latest.jpg
 ## 说明
 
 - 应用可写入 Home Assistant 的 `media` 与 `share` 目录，默认截图保存在 `/media/timelapse`
-- 清理仅作用于各源自己的目录，`latest.jpg` 不会被删除
+- 抓拍采用原子写入（临时文件 + 重命名），不会把半截文件留在浏览页中
+- 清理仅作用于各源自己的目录

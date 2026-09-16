@@ -4,12 +4,14 @@ import logging
 import os
 import socketserver
 import threading
+import time
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
+from capture import IMAGE_SUFFIXES, find_latest_file
 from i18n import LANG_ATTRS, STRINGS, negotiate
 from settings import SettingsError
 
@@ -18,8 +20,10 @@ LOGGER = logging.getLogger("web")
 PORT = 8099
 
 PAGE_SIZES = (30, 60, 120)
+PER_ALL = "all"
 DEFAULT_PAGE_SIZE = 60
-IMAGE_SUFFIXES = (".jpg", ".jpeg")
+SCAN_CACHE_SECONDS = 10
+LATEST_PREFIX = "/latest/"
 DEFAULT_SORT = "time_desc"
 SORT_ORDER = ("time_desc", "time_asc", "name_asc", "name_desc", "size_desc", "size_asc")
 SORT_KEYS = {
@@ -61,13 +65,21 @@ select { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid
 .view-toggle { display: inline-flex; gap: 8px; }
 .view-toggle button.active { background: #03a9f4; }
 .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+@media (min-width: 768px) {
+  .items { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+}
+@media (min-width: 1600px) {
+  .items { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+}
 .tile { display: block; background: #fff; border-radius: 12px; padding: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); color: inherit; text-decoration: none; }
 .tile img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; display: block; background: #ddd; }
 .tile .name, .tile .size { display: none; }
 .tile .time { display: block; margin-top: 6px; font-size: .75rem; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #03a9f4; color: #fff; font-size: .7rem; }
 .latest-section { margin-bottom: 20px; }
 .latest-section h2 { font-size: 1rem; margin: 0 0 8px; }
+.latest-section .items { grid-template-columns: minmax(0, 420px); }
+.latest-section .tile .name { display: block; margin-top: 8px; font-size: .85rem; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.latest-section .tile .time { margin-top: 2px; }
 .list-header { display: none; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; padding: 8px 12px; font-size: .75rem; color: #777; border-bottom: 1px solid #ddd; }
 html.view-list .list-header { display: grid; }
 html.view-list .items { display: block; }
@@ -101,6 +113,7 @@ html.view-list .tile .time { margin: 0; font-size: .8rem; color: #777; }
   .tile { background: #1e1e1e; box-shadow: none; }
   .tile img { background: #2a2a2a; }
   .tile .time { color: #aaa; }
+  .latest-section .tile .name { color: #aaa; }
   .list-header { color: #888; border-color: #333; }
   html.view-list .tile { border-bottom: 1px solid #2f2f2f; }
   html.view-list .tile .time { color: #999; }
@@ -129,11 +142,11 @@ __STYLE__
 __CONTENT__
 <script>
 const L = __LOCALE_JSON__;
-async function refreshImage(card) {
+function refreshImage(card, file) {
   const img = card.querySelector('img');
   const link = card.getAttribute('data-link');
-  if (img && link) {
-    img.src = link + '/latest.jpg?t=' + Date.now();
+  if (img && link && file) {
+    img.src = link + '/' + encodeURIComponent(file);
     img.style.display = 'block';
   }
 }
@@ -143,7 +156,7 @@ function setResult(card, data) {
   if (data.ok) {
     result.textContent = L.saved_prefix + data.file;
     result.classList.remove('error');
-    refreshImage(card);
+    refreshImage(card, data.file);
   } else {
     result.textContent = L.failed_prefix + (data.error || L.unknown_error);
     result.classList.add('error');
@@ -425,6 +438,9 @@ class GalleryHandler(SimpleHTTPRequestHandler):
     scheduler = None
     settings = None
     server_version = "http-timelapse/0.3"
+    scan_cache_seconds = SCAN_CACHE_SECONDS
+    _scan_cache = {}
+    _scan_cache_lock = threading.Lock()
 
     def __init__(self, *args, directory=None, sources=None, scheduler=None, settings=None, **kwargs):
         if sources is not None:
@@ -438,11 +454,6 @@ class GalleryHandler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         LOGGER.info("%s %s", self.address_string(), fmt % args)
 
-    def end_headers(self):
-        if urlparse(self.path).path.endswith("/latest.jpg"):
-            self.send_header("Cache-Control", "no-store, max-age=0")
-        super().end_headers()
-
     def do_GET(self):
         path = urlparse(self.path).path
         if path in ("", "/"):
@@ -451,7 +462,44 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         if path in ("/settings", "/settings/"):
             self._page(SETTINGS_PAGE, self._settings_cards(self._strings()))
             return
+        if path.startswith(LATEST_PREFIX):
+            self._latest_image()
+            return
         super().do_GET()
+
+    def do_HEAD(self):
+        if urlparse(self.path).path.startswith(LATEST_PREFIX):
+            self._latest_image(head_only=True)
+            return
+        super().do_HEAD()
+
+    def _latest_image(self, head_only=False):
+        raw = urlparse(self.path).path[len(LATEST_PREFIX):]
+        if not raw.lower().endswith(".jpg"):
+            self.send_error(404, "not found")
+            return
+        name = unquote(raw[:-4])
+        source = next((item for item in self.sources if item.name == name), None)
+        if source is None:
+            self.send_error(404, "unknown source")
+            return
+        item = self._latest_item(source)
+        if item is None:
+            self.send_error(404, "no captures yet")
+            return
+        try:
+            data = (source.directory / item["name"]).read_bytes()
+        except OSError as exc:
+            LOGGER.warning("could not read the latest capture of %s: %s", source.name, exc)
+            self.send_error(404, "not found")
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "image/jpeg")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store, max-age=0")
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(data)
 
     def do_POST(self):
         path = urlparse(self.path).path
@@ -501,6 +549,7 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
         if path is None:
             return {"source": source.name, "ok": False, "error": "capture failed, check the app log"}
+        self._invalidate_scan(source)
         return {"source": source.name, "ok": True, "file": Path(path).name}
 
     def _save_times(self):
@@ -624,7 +673,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             return f"{value / (1024 * 1024):.1f} MB"
         return f"{value / (1024 * 1024 * 1024):.1f} GB"
 
-    def _scan_items(self, source):
+    @staticmethod
+    def _scan_directory(source):
         items = []
         try:
             entries = os.scandir(source.directory)
@@ -633,7 +683,7 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         with entries:
             for entry in entries:
                 name = entry.name
-                if name == "latest.jpg" or name.endswith(".tmp"):
+                if name.endswith(".tmp"):
                     continue
                 if Path(name).suffix.lower() not in IMAGE_SUFFIXES:
                     continue
@@ -645,6 +695,35 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                     continue
                 items.append({"name": name, "mtime": stat.st_mtime, "size": stat.st_size})
         return items
+
+    def _scan_items(self, source):
+        try:
+            key = str(source.directory.resolve())
+        except OSError:
+            return []
+        now = time.monotonic()
+        with self._scan_cache_lock:
+            cached = self._scan_cache.get(key)
+        if cached is not None and now - cached[0] < self.scan_cache_seconds:
+            return list(cached[1])
+        items = self._scan_directory(source)
+        with self._scan_cache_lock:
+            self._scan_cache[key] = (now, items)
+        return list(items)
+
+    @classmethod
+    def _invalidate_scan(cls, source):
+        try:
+            key = str(source.directory.resolve())
+        except OSError:
+            return
+        with cls._scan_cache_lock:
+            cls._scan_cache.pop(key, None)
+
+    def _latest_item(self, source):
+        if self.scheduler is not None:
+            return self.scheduler.latest_item(source)
+        return find_latest_file(source.directory)
 
     def _browse_item(self, item):
         name = item["name"]
@@ -687,34 +766,32 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         if sort not in SORT_KEYS:
             sort = DEFAULT_SORT
 
-        per = self._int_param(query, "per", DEFAULT_PAGE_SIZE)
-        if per not in PAGE_SIZES:
-            per = DEFAULT_PAGE_SIZE
+        per_raw = (query.get("per") or [str(DEFAULT_PAGE_SIZE)])[0]
+        if per_raw == PER_ALL:
+            per = PER_ALL
+        else:
+            per = self._int_param(query, "per", DEFAULT_PAGE_SIZE)
+            if per not in PAGE_SIZES:
+                per = DEFAULT_PAGE_SIZE
 
         items = self._scan_items(source)
         key, reverse = SORT_KEYS[sort]
         items.sort(key=key, reverse=reverse)
 
-        pages = max(1, (len(items) + per - 1) // per)
-        page = min(max(self._int_param(query, "page", 1), 1), pages)
-        start = (page - 1) * per
-        visible = items[start : start + per]
+        latest_item = max(items, key=lambda entry: entry["mtime"]) if items else None
+
+        if per == PER_ALL:
+            pages = 1
+            page = 1
+            visible = items
+        else:
+            pages = max(1, (len(items) + per - 1) // per)
+            page = min(max(self._int_param(query, "page", 1), 1), pages)
+            start = (page - 1) * per
+            visible = items[start : start + per]
 
         relative = self._relative_link(source.directory)
         back = "../" * (len(Path(relative).parts) if relative else 1)
-
-        latest = source.directory / "latest.jpg"
-        latest_item = None
-        if latest.is_file():
-            try:
-                stat = latest.stat()
-                latest_item = {
-                    "name": latest.name,
-                    "mtime": stat.st_mtime,
-                    "size": stat.st_size,
-                }
-            except OSError:
-                latest_item = None
 
         sort_options = "".join(
             f'<option value="{value}"{" selected" if value == sort else ""}>{text["sort_" + value]}</option>'
@@ -722,8 +799,9 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         )
         per_options = "".join(
             f'<option value="{size}"{" selected" if size == per else ""}>'
-            f'{text["per_page_option"].format(size=size)}</option>'
-            for size in PAGE_SIZES
+            f'{text["per_page_all"] if size == PER_ALL else text["per_page_option"].format(size=size)}'
+            "</option>"
+            for size in PAGE_SIZES + (PER_ALL,)
         )
 
         parts = [
@@ -744,8 +822,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
         if latest_item is not None:
             parts.append('<section class="latest-section">')
-            parts.append(f'<h2>{text["latest_heading"]} <span class="badge">latest.jpg</span></h2>')
-            parts.append('<div class="items">' + self._browse_item(latest_item) + "</div>")
+            parts.append(f'<h2>{text["latest_heading"]}</h2>')
+            parts.append('<div class="items latest-items">' + self._browse_item(latest_item) + "</div>")
             parts.append("</section>")
 
         parts.append(
@@ -775,18 +853,17 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         return f'<p class="notice">{text["no_sources"]}</p>'
 
     def _gallery_card(self, source, text):
-        latest = source.directory / "latest.jpg"
         link = self._relative_link(source.directory)
         name = html.escape(source.name)
-        has_latest = link is not None and latest.is_file()
+        item = self._latest_item(source) if link is not None else None
 
         if link is None:
             image = f'<div class="empty">{text["directory_outside_root"]}</div>'
             link_attr = ""
         else:
             link_attr = html.escape(link)
-            source_image = f"{link}/latest.jpg?t={latest.stat().st_mtime_ns}" if has_latest else ""
-            display = "block" if has_latest else "none"
+            source_image = f"{link}/{quote(item['name'])}" if item is not None else ""
+            display = "block" if item is not None else "none"
             image = (
                 f'<a href="{link_attr}/">'
                 f'<img src="{html.escape(source_image)}" alt="{name}" style="display:{display}">'
@@ -794,8 +871,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             )
 
         updated = (
-            datetime.fromtimestamp(latest.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-            if has_latest
+            datetime.fromtimestamp(item["mtime"]).strftime("%Y-%m-%d %H:%M:%S")
+            if item is not None
             else "-"
         )
 

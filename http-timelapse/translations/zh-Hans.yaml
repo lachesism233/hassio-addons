@@ -4,7 +4,7 @@ configuration:
     description: 留空自动跟随 Home Assistant 的时区。
   media_root:
     name: 存储根目录
-    description: 留空使用 /media/timelapse；每个源保存到“根目录/名称”。
+    description: 所有抓拍文件的根目录，例如 /media/timelapse。源默认保存到“<根目录>/<名称>”（如 /media/timelapse/camera1），可单独设置自定义目录。
   captures:
     name: 抓拍源
     description: 每个抓拍地址独立配置时间与保存位置；点击“添加”创建。
@@ -17,33 +17,33 @@ configuration:
         description: 返回 JPEG 的地址，例如 http://<go2rtc 地址>:1984/api/frame.jpeg?src=camera1
       directory:
         name: 自定义目录
-        description: 留空使用“存储根目录/名称”。
+        description: 可选。留空即“<存储根目录>/<名称>”，如 /media/timelapse/camera1。相对路径基于存储根创建，如 upstairs/camera1；绝对路径（如 /share/timelapse/camera1）原样使用，需位于已映射的目录内（/media 或 /share）。
       filename_format:
         name: 文件名格式
-        description: 留空使用 snap_%Y%m%d_%H%M%S.jpg。
+        description: 留空使用 snap_%Y%m%d_%H%M%S.jpg（strftime 格式，文件名超长会截断到 120 字符）。
       strict_schedule_time:
         name: 严格计划时间命名
         description: 文件名时间严格等于计划触发时间（重试也不变）；关闭则使用实际保存时间。
       times:
         name: 每日时间点
-        description: 24 小时制 HH:MM，可多条；也可在浏览面板“设置”页用时间选择器编辑。
+        description: 24 小时制 HH:MM（00:00-23:59），可多条；也可在浏览面板“设置”页用时间选择器编辑。
       interval_minutes:
         name: 定时间隔（分钟）
-        description: 大于 0 时按固定间隔抓拍，与每日时间点可同时使用。
+        description: 0-1440。大于 0 时按固定间隔抓拍，与每日时间点可同时使用。
       retries:
         name: 重试次数
-        description: 首次失败后的额外重试次数，默认 3。
+        description: 首次失败后的额外重试次数，0-50，默认 3；设置上限避免故障源长期占用调度器。
       retry_wait:
         name: 重试等待（秒）
-        description: 两次尝试之间的等待秒数，默认 5。
+        description: 两次尝试之间的等待秒数，1-600，默认 5。
       timeout:
         name: 请求超时（秒）
-        description: 单次请求超时，默认 10。
+        description: 单次请求超时，1-300，默认 10。
       min_size:
         name: 最小图片大小（字节）
-        description: 小于该值的响应视为无效，默认 1024。
+        description: 小于该值的响应视为无效，0 或更大，默认 1024。
       keep_days:
         name: 保留天数
-        description: 0 永久保留；大于 0 时每天自动清理超期截图。
+        description: 0-3650；0 永久保留，大于 0 时每天自动清理超期截图。
 network:
   8099/TCP: Web 浏览端口（Ingress 已内置，可不映射）

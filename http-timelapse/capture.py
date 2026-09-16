@@ -10,6 +10,7 @@ LOGGER = logging.getLogger("capture")
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
 JPEG_SOI = b"\xff\xd8\xff"
 JPEG_EOI = b"\xff\xd9"
+IMAGE_SUFFIXES = (".jpg", ".jpeg")
 DEFAULT_FILENAME_FORMAT = "snap_%Y%m%d_%H%M%S.jpg"
 MAX_FILENAME_LENGTH = 120
 
@@ -207,12 +208,30 @@ def save_image(source, data, when):
     tmp_path.write_bytes(data)
     os.replace(tmp_path, path)
 
-    latest = source.directory / "latest.jpg"
-    latest_tmp = source.directory / "latest.jpg.tmp"
-    latest_tmp.write_bytes(data)
-    os.replace(latest_tmp, latest)
-
     return path
+
+
+def find_latest_file(directory):
+    newest = None
+    try:
+        entries = os.scandir(directory)
+    except OSError:
+        return None
+    with entries:
+        for entry in entries:
+            if entry.name.endswith(".tmp"):
+                continue
+            if Path(entry.name).suffix.lower() not in IMAGE_SUFFIXES:
+                continue
+            try:
+                if not entry.is_file():
+                    continue
+                stat = entry.stat()
+            except OSError:
+                continue
+            if newest is None or stat.st_mtime > newest["mtime"]:
+                newest = {"name": entry.name, "mtime": stat.st_mtime, "size": stat.st_size}
+    return newest
 
 
 def capture_source(source, when, stop_event, logger=None):
@@ -262,8 +281,6 @@ def cleanup_source(source, now, logger=None):
     removed = 0
     for pattern in ("*.jpg", "*.jpeg"):
         for path in source.directory.glob(pattern):
-            if path.name == "latest.jpg":
-                continue
             try:
                 if path.stat().st_mtime < cutoff:
                     path.unlink()
