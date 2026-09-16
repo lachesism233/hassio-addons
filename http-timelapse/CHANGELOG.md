@@ -2,6 +2,11 @@
 
 All notable changes to the HTTP Timelapse app. / HTTP Timelapse 应用的版本变更记录。
 
+## 1.2.0 - 2026-09-16
+
+- The web interface now follows the browser language: Simplified Chinese for Chinese browsers, English otherwise.
+- 网页界面改为跟随浏览器语言：中文浏览器显示简体中文，其他默认英文。
+
 ## 1.1.0 - 2026-09-16
 
 - Rebuilt the per-source capture browser: grid/list toggle remembered per browser, sorting by time/name/size in both directions, 30/60/120 items per page, lazy-loaded grid images, pinned `latest.jpg` and a built-in lightbox.

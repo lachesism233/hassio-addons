@@ -85,6 +85,7 @@ Open the gallery from the sidebar **HTTP Timelapse** (or directly via `http://<H
   - `latest.jpg` is pinned at the top, outside sorting and paging
   - click an image to open the built-in lightbox: `←` / `→` to switch, `Esc` to close, or open the original in a new tab
   - a back-to-home link returns to the gallery
+- The web interface follows the browser language: Simplified Chinese for Chinese browsers, English otherwise
 
 ## Show the latest frame on a dashboard
 
@@ -205,6 +206,7 @@ http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
   - `latest.jpg` 置顶「最新抓拍」，不参与排序与分页
   - 点击图片打开内置灯箱：`←` / `→` 切换、`Esc` 关闭，也可在新标签页打开原图
   - 「返回首页」链接回到浏览面板
+- 网页界面跟随浏览器语言：中文浏览器显示简体中文，其他默认英文
 
 ## 仪表盘显示最新画面
 

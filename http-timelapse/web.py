@@ -10,6 +10,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
+from i18n import LANG_ATTRS, STRINGS, negotiate
 from settings import SettingsError
 
 LOGGER = logging.getLogger("web")
@@ -20,14 +21,7 @@ PAGE_SIZES = (30, 60, 120)
 DEFAULT_PAGE_SIZE = 60
 IMAGE_SUFFIXES = (".jpg", ".jpeg")
 DEFAULT_SORT = "time_desc"
-SORT_OPTIONS = (
-    ("time_desc", "时间：新 → 旧"),
-    ("time_asc", "时间：旧 → 新"),
-    ("name_asc", "文件名：A → Z"),
-    ("name_desc", "文件名：Z → A"),
-    ("size_desc", "大小：大 → 小"),
-    ("size_asc", "大小：小 → 大"),
-)
+SORT_ORDER = ("time_desc", "time_asc", "name_asc", "name_desc", "size_desc", "size_asc")
 SORT_KEYS = {
     "time_desc": (lambda item: (item["mtime"], item["name"].lower()), True),
     "time_asc": (lambda item: (item["mtime"], item["name"].lower()), False),
@@ -115,25 +109,26 @@ html.view-list .tile .time { margin: 0; font-size: .8rem; color: #777; }
 """
 
 PAGE = """<!DOCTYPE html>
-<html lang="zh-Hans">
+<html lang="__LANG__">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>延时摄影</title>
+<title>__GALLERY_TITLE__</title>
 <style>
 __STYLE__
 </style>
 </head>
 <body>
 <header>
-<h1>延时摄影</h1>
-<button id="shoot-all">全部立即抓拍</button>
-<button id="reload" class="secondary">刷新</button>
-<a class="button-link secondary" href="settings">设置</a>
+<h1>__GALLERY_TITLE__</h1>
+<button id="shoot-all">__CAPTURE_ALL__</button>
+<button id="reload" class="secondary">__RELOAD__</button>
+<a class="button-link secondary" href="settings">__SETTINGS_LINK__</a>
 <span id="all-result"></span>
 </header>
 __CONTENT__
 <script>
+const L = __LOCALE_JSON__;
 async function refreshImage(card) {
   const img = card.querySelector('img');
   const link = card.getAttribute('data-link');
@@ -146,11 +141,11 @@ function setResult(card, data) {
   const result = card.querySelector('.result');
   if (!result) return;
   if (data.ok) {
-    result.textContent = '已保存 ' + data.file;
+    result.textContent = L.saved_prefix + data.file;
     result.classList.remove('error');
     refreshImage(card);
   } else {
-    result.textContent = '失败: ' + (data.error || '未知错误');
+    result.textContent = L.failed_prefix + (data.error || L.unknown_error);
     result.classList.add('error');
   }
 }
@@ -158,12 +153,12 @@ async function shoot(card, button) {
   button.disabled = true;
   const result = card.querySelector('.result');
   result.classList.remove('error');
-  result.textContent = '抓拍中…';
+  result.textContent = L.capturing;
   try {
     const response = await fetch('api/capture?name=' + encodeURIComponent(card.getAttribute('data-source')), { method: 'POST' });
     setResult(card, await response.json());
   } catch (error) {
-    result.textContent = '请求失败: ' + error;
+    result.textContent = L.request_failed_prefix + error;
     result.classList.add('error');
   } finally {
     button.disabled = false;
@@ -179,19 +174,19 @@ document.getElementById('shoot-all').addEventListener('click', async function ()
   const button = this;
   const allResult = document.getElementById('all-result');
   button.disabled = true;
-  allResult.textContent = '抓拍中…';
+  allResult.textContent = L.capturing;
   try {
     const response = await fetch('api/capture?name=*', { method: 'POST' });
     const data = await response.json();
     const results = data.results || [];
     const okCount = results.filter(function (item) { return item.ok; }).length;
-    allResult.textContent = '完成 ' + okCount + '/' + results.length;
+    allResult.textContent = L.done_prefix + okCount + '/' + results.length;
     results.forEach(function (item) {
       const card = document.querySelector('[data-source="' + CSS.escape(item.source) + '"]');
       if (card) setResult(card, item);
     });
   } catch (error) {
-    allResult.textContent = '请求失败: ' + error;
+    allResult.textContent = L.request_failed_prefix + error;
   } finally {
     button.disabled = false;
   }
@@ -202,27 +197,28 @@ document.getElementById('shoot-all').addEventListener('click', async function ()
 """
 
 SETTINGS_PAGE = """<!DOCTYPE html>
-<html lang="zh-Hans">
+<html lang="__LANG__">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>延时摄影 - 设置</title>
+<title>__SETTINGS_TITLE__</title>
 <style>
 __STYLE__
 </style>
 </head>
 <body>
 <header>
-<h1>抓拍时间设置</h1>
-<a class="button-link secondary" href=".">返回浏览</a>
+<h1>__SETTINGS_HEADING__</h1>
+<a class="button-link secondary" href=".">__BACK_TO_GALLERY__</a>
 </header>
-<p class="notice">为每个源选择每日抓拍时间点（可添加多个）。保存后应用会自动重启以生效；其他参数请在应用配置页修改。</p>
+<p class="notice">__SETTINGS_NOTICE__</p>
 __CONTENT__
 <div class="footer">
-<button id="save">保存并重启</button>
+<button id="save">__SAVE_RESTART__</button>
 <span id="save-status"></span>
 </div>
 <script>
+const L = __LOCALE_JSON__;
 function makeRow(value) {
   const row = document.createElement('div');
   row.className = 'time-row';
@@ -232,7 +228,7 @@ function makeRow(value) {
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'secondary';
-  remove.textContent = '删除';
+  remove.textContent = L.remove;
   remove.addEventListener('click', function () { row.remove(); });
   row.append(input, remove);
   return row;
@@ -254,7 +250,7 @@ async function waitForRestart(status) {
       if (response.ok) { location.href = '.'; return; }
     } catch (error) {}
   }
-  status.textContent = '等待重启超时，请手动刷新页面';
+  status.textContent = L.waiting_restart;
 }
 document.getElementById('save').addEventListener('click', async function () {
   const button = this;
@@ -266,26 +262,26 @@ document.getElementById('save').addEventListener('click', async function () {
     payload.times[card.getAttribute('data-source')] = values;
     if (!values.length && card.getAttribute('data-interval') === '0') emptySources.push(card.getAttribute('data-source'));
   });
-  if (emptySources.length && !confirm('以下源既没有时间点也没有间隔，将不再自动抓拍：' + emptySources.join('、') + '。仍然保存？')) return;
+  if (emptySources.length && !confirm(L.confirm_empty_before + emptySources.join(L.list_separator) + L.confirm_empty_after)) return;
   button.disabled = true;
-  status.textContent = '保存中…';
+  status.textContent = L.saving;
   try {
     const response = await fetch('api/settings/times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await response.json();
     if (!data.ok) {
-      status.textContent = '保存失败: ' + (data.error || '未知错误');
+      status.textContent = L.save_failed_prefix + (data.error || L.unknown_error);
       button.disabled = false;
       return;
     }
     if (data.restart) {
-      status.textContent = '已保存，正在重启应用…';
+      status.textContent = L.saved_restarting;
       waitForRestart(status);
     } else {
-      status.textContent = '已保存，请手动重启应用生效';
+      status.textContent = L.saved_manual;
       button.disabled = false;
     }
   } catch (error) {
-    status.textContent = '请求失败: ' + error;
+    status.textContent = L.request_failed_prefix + error;
     button.disabled = false;
   }
 });
@@ -295,7 +291,7 @@ document.getElementById('save').addEventListener('click', async function () {
 """
 
 BROWSE_PAGE = """<!DOCTYPE html>
-<html lang="zh-Hans">
+<html lang="__LANG__">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -312,11 +308,11 @@ __STYLE__
 <body>
 __CONTENT__
 <div id="lightbox" class="lightbox" hidden>
-<button type="button" class="lightbox-close" aria-label="关闭">×</button>
-<button type="button" class="lightbox-prev" aria-label="上一张">‹</button>
+<button type="button" class="lightbox-close" aria-label="__LIGHTBOX_CLOSE__">×</button>
+<button type="button" class="lightbox-prev" aria-label="__LIGHTBOX_PREV__">‹</button>
 <img alt="">
-<button type="button" class="lightbox-next" aria-label="下一张">›</button>
-<div class="lightbox-caption"><span></span> <a target="_blank" rel="noopener">在新标签打开原图</a></div>
+<button type="button" class="lightbox-next" aria-label="__LIGHTBOX_NEXT__">›</button>
+<div class="lightbox-caption"><span></span> <a target="_blank" rel="noopener">__LIGHTBOX_ORIGINAL__</a></div>
 </div>
 <script>
 (function () {
@@ -450,10 +446,10 @@ class GalleryHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path in ("", "/"):
-            self._page(PAGE, self._gallery_cards())
+            self._page(PAGE, self._gallery_cards(self._strings()))
             return
         if path in ("/settings", "/settings/"):
-            self._page(SETTINGS_PAGE, self._settings_cards())
+            self._page(SETTINGS_PAGE, self._settings_cards(self._strings()))
             return
         super().do_GET()
 
@@ -555,10 +551,24 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _language(self):
+        return negotiate(self.headers.get("Accept-Language"))
+
+    def _strings(self):
+        return STRINGS[self._language()]
+
     def _page(self, template, content, title=None):
-        body = template.replace("__STYLE__", SHARED_STYLE).replace("__CONTENT__", content)
+        language = self._language()
+        strings = STRINGS[language]
+        body = template.replace("__STYLE__", SHARED_STYLE)
+        body = body.replace("__LANG__", LANG_ATTRS[language])
+        for key, value in strings["text"].items():
+            body = body.replace(f"__{key.upper()}__", value)
+        locale_json = json.dumps(strings["js"], ensure_ascii=False).replace("</", "<\\/")
+        body = body.replace("__LOCALE_JSON__", locale_json)
         if title is not None:
             body = body.replace("__TITLE__", html.escape(title))
+        body = body.replace("__CONTENT__", content)
         body = body.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -577,7 +587,9 @@ class GalleryHandler(SimpleHTTPRequestHandler):
     def list_directory(self, path):
         source = self._source_for_directory(path)
         if source is not None:
-            self._page(BROWSE_PAGE, self._browse_content(source), title=f"{source.name} · 抓拍列表")
+            strings = self._strings()
+            title = f"{source.name} · {strings['text']['browse_suffix']}"
+            self._page(BROWSE_PAGE, self._browse_content(source, strings), title=title)
             return None
         return super().list_directory(path)
 
@@ -650,7 +662,7 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             "</a>"
         )
 
-    def _pagination(self, sort, per, page, pages):
+    def _pagination(self, sort, per, page, pages, text):
         def link(label, target, enabled):
             if enabled:
                 href = f"?sort={sort}&amp;per={per}&amp;page={target}"
@@ -659,15 +671,16 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
         return (
             '<nav class="pagination">'
-            + link("首页", 1, page > 1)
-            + link("上一页", page - 1, page > 1)
-            + f'<span class="info">第 {page} / {pages} 页</span>'
-            + link("下一页", page + 1, page < pages)
-            + link("末页", pages, page < pages)
+            + link(text["pagination_first"], 1, page > 1)
+            + link(text["pagination_prev"], page - 1, page > 1)
+            + f'<span class="info">{text["pagination_info"].format(page=page, pages=pages)}</span>'
+            + link(text["pagination_next"], page + 1, page < pages)
+            + link(text["pagination_last"], pages, page < pages)
             + "</nav>"
         )
 
-    def _browse_content(self, source):
+    def _browse_content(self, source, strings):
+        text = strings["text"]
         query = parse_qs(urlparse(self.path).query)
 
         sort = (query.get("sort") or [DEFAULT_SORT])[0]
@@ -704,60 +717,71 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 latest_item = None
 
         sort_options = "".join(
-            f'<option value="{value}"{" selected" if value == sort else ""}>{label}</option>'
-            for value, label in SORT_OPTIONS
+            f'<option value="{value}"{" selected" if value == sort else ""}>{text["sort_" + value]}</option>'
+            for value in SORT_ORDER
         )
         per_options = "".join(
-            f'<option value="{size}"{" selected" if size == per else ""}>{size} 张</option>'
+            f'<option value="{size}"{" selected" if size == per else ""}>'
+            f'{text["per_page_option"].format(size=size)}</option>'
             for size in PAGE_SIZES
         )
 
         parts = [
             "<header>",
-            f"<h1>{html.escape(source.name)} · 抓拍列表</h1>",
-            f'<a class="button-link secondary" href="{back}">返回首页</a>',
+            f"<h1>{html.escape(source.name)} · {text['browse_suffix']}</h1>",
+            f'<a class="button-link secondary" href="{back}">{text["back_to_home"]}</a>',
             "</header>",
             '<div class="toolbar">',
-            f'<span class="count">共 {len(items)} 张</span>',
+            f'<span class="count">{text["total_count"].format(count=len(items))}</span>',
             '<div class="view-toggle">',
-            '<button type="button" class="secondary active" data-view="grid">网格</button>',
-            '<button type="button" class="secondary" data-view="list">列表</button>',
+            f'<button type="button" class="secondary active" data-view="grid">{text["view_grid"]}</button>',
+            f'<button type="button" class="secondary" data-view="list">{text["view_list"]}</button>',
             "</div>",
-            f'<label>排序 <select id="sort">{sort_options}</select></label>',
-            f'<label>每页 <select id="per">{per_options}</select></label>',
+            f'<label>{text["sort_label"]} <select id="sort">{sort_options}</select></label>',
+            f'<label>{text["per_page_label"]} <select id="per">{per_options}</select></label>',
             "</div>",
         ]
 
         if latest_item is not None:
             parts.append('<section class="latest-section">')
-            parts.append('<h2>最新抓拍 <span class="badge">latest.jpg</span></h2>')
+            parts.append(f'<h2>{text["latest_heading"]} <span class="badge">latest.jpg</span></h2>')
             parts.append('<div class="items">' + self._browse_item(latest_item) + "</div>")
             parts.append("</section>")
 
-        parts.append('<div class="list-header"><span>文件名</span><span>抓拍时间</span><span>大小</span></div>')
+        parts.append(
+            '<div class="list-header">'
+            f'<span>{text["column_name"]}</span>'
+            f'<span>{text["column_time"]}</span>'
+            f'<span>{text["column_size"]}</span>'
+            "</div>"
+        )
         if visible:
             parts.append('<div class="items">' + "".join(self._browse_item(item) for item in visible) + "</div>")
         else:
-            parts.append('<p class="notice">还没有抓拍文件。</p>')
+            parts.append(f'<p class="notice">{text["empty_items"]}</p>')
         if pages > 1:
-            parts.append(self._pagination(sort, per, page, pages))
+            parts.append(self._pagination(sort, per, page, pages, text))
 
         return "".join(parts)
 
-    def _gallery_cards(self):
-        cards = [self._gallery_card(source) for source in sorted(self.sources, key=lambda item: item.name)]
+    def _gallery_cards(self, strings):
+        text = strings["text"]
+        cards = [
+            self._gallery_card(source, text)
+            for source in sorted(self.sources, key=lambda item: item.name)
+        ]
         if cards:
             return '<div class="grid">' + "".join(cards) + "</div>"
-        return '<p class="notice">还没有配置抓拍源，请在应用配置中添加。</p>'
+        return f'<p class="notice">{text["no_sources"]}</p>'
 
-    def _gallery_card(self, source):
+    def _gallery_card(self, source, text):
         latest = source.directory / "latest.jpg"
         link = self._relative_link(source.directory)
         name = html.escape(source.name)
         has_latest = link is not None and latest.is_file()
 
         if link is None:
-            image = '<div class="empty">目录不在浏览根目录下</div>'
+            image = f'<div class="empty">{text["directory_outside_root"]}</div>'
             link_attr = ""
         else:
             link_attr = html.escape(link)
@@ -779,35 +803,37 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             f'<div class="card" data-source="{name}" data-link="{link_attr}">'
             f"<h2>{name}</h2>"
             f"{image}"
-            f"<p>最近抓拍: {updated}</p>"
+            f"<p>{text['latest_capture']}: {updated}</p>"
             f'<p class="path">{html.escape(str(source.directory))}</p>'
             '<div class="actions">'
-            f'<button class="shoot" data-name="{name}">立即抓拍</button>'
+            f'<button class="shoot" data-name="{name}">{text["capture_now"]}</button>'
             '<p class="result"></p>'
             "</div>"
             "</div>"
         )
 
-    def _settings_cards(self):
+    def _settings_cards(self, strings):
+        text = strings["text"]
         cards = []
         for source in sorted(self.sources, key=lambda item: item.name):
             name = html.escape(source.name)
             rows = "".join(
                 f'<div class="time-row"><input type="time" value="{html.escape(value)}">'
-                '<button type="button" class="secondary">删除</button></div>'
+                f'<button type="button" class="secondary">{text["remove"]}</button></div>'
                 for value in source.times
             )
+            interval_note = text["interval_note"].format(minutes=source.interval_minutes)
             cards.append(
                 f'<section class="card" data-source="{name}" data-interval="{source.interval_minutes}">'
                 f"<h2>{name}</h2>"
-                f'<p class="path">抓拍间隔: {source.interval_minutes} 分钟（在应用配置页修改）</p>'
+                f'<p class="path">{interval_note}</p>'
                 f'<div class="times">{rows}</div>'
-                '<button type="button" class="add secondary">添加时间点</button>'
+                f'<button type="button" class="add secondary">{text["add_time"]}</button>'
                 "</section>"
             )
 
         if not cards:
-            return '<p class="notice">还没有配置抓拍源，请在应用配置中添加。</p>'
+            return f'<p class="notice">{text["no_sources"]}</p>'
         return '<div class="grid">' + "".join(cards) + "</div>"
 
 
