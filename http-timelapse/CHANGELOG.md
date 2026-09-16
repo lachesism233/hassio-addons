@@ -2,6 +2,11 @@
 
 All notable changes to the HTTP Timelapse app. / HTTP Timelapse 应用的版本变更记录。
 
+## 1.1.0 - 2026-09-16
+
+- Rebuilt the per-source capture browser: grid/list toggle remembered per browser, sorting by time/name/size in both directions, 30/60/120 items per page, lazy-loaded grid images, pinned `latest.jpg` and a built-in lightbox.
+- 重写每个源的抓拍浏览页：网格/列表视图切换（按浏览器记忆）、按时间/文件名/大小双向排序、每页 30/60/120 张、网格图片懒加载、`latest.jpg` 置顶展示、内置灯箱预览。
+
 ## 1.0.1 - 2026-09-15
 
 - Bilingual (English / Simplified Chinese) documentation and this changelog.

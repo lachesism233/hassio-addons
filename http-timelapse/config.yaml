@@ -1,5 +1,5 @@
 name: HTTP Timelapse
-version: "1.0.1"
+version: "1.1.0"
 slug: http_timelapse
 description: Unattended scheduled JPEG snapshots from go2rtc/HTTP sources with validation, retries, per-source schedules and a built-in gallery
 url: https://github.com/lachesism233/hassio-addons

@@ -8,13 +8,34 @@ from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from settings import SettingsError
 
 LOGGER = logging.getLogger("web")
 
 PORT = 8099
+
+PAGE_SIZES = (30, 60, 120)
+DEFAULT_PAGE_SIZE = 60
+IMAGE_SUFFIXES = (".jpg", ".jpeg")
+DEFAULT_SORT = "time_desc"
+SORT_OPTIONS = (
+    ("time_desc", "时间：新 → 旧"),
+    ("time_asc", "时间：旧 → 新"),
+    ("name_asc", "文件名：A → Z"),
+    ("name_desc", "文件名：Z → A"),
+    ("size_desc", "大小：大 → 小"),
+    ("size_asc", "大小：小 → 大"),
+)
+SORT_KEYS = {
+    "time_desc": (lambda item: (item["mtime"], item["name"].lower()), True),
+    "time_asc": (lambda item: (item["mtime"], item["name"].lower()), False),
+    "name_asc": (lambda item: item["name"].lower(), False),
+    "name_desc": (lambda item: item["name"].lower(), True),
+    "size_desc": (lambda item: (item["size"], item["name"].lower()), True),
+    "size_asc": (lambda item: (item["size"], item["name"].lower()), False),
+}
 
 SHARED_STYLE = """
 :root { color-scheme: light dark; }
@@ -39,14 +60,57 @@ input[type=time] { font: inherit; padding: 6px 10px; border-radius: 8px; border:
 .time-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .footer { margin-top: 20px; display: flex; align-items: center; gap: 12px; }
 #status, #save-status, #all-result { font-size: .85rem; color: #555; }
+select { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid #bbb; background: #fff; color: #111; }
+.toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.toolbar .count { font-size: .85rem; color: #555; }
+.toolbar label { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; color: #555; }
+.view-toggle { display: inline-flex; gap: 8px; }
+.view-toggle button.active { background: #03a9f4; }
+.items { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.tile { display: block; background: #fff; border-radius: 12px; padding: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); color: inherit; text-decoration: none; }
+.tile img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; display: block; background: #ddd; }
+.tile .name, .tile .size { display: none; }
+.tile .time { display: block; margin-top: 6px; font-size: .75rem; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #03a9f4; color: #fff; font-size: .7rem; }
+.latest-section { margin-bottom: 20px; }
+.latest-section h2 { font-size: 1rem; margin: 0 0 8px; }
+.list-header { display: none; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; padding: 8px 12px; font-size: .75rem; color: #777; border-bottom: 1px solid #ddd; }
+html.view-list .list-header { display: grid; }
+html.view-list .items { display: block; }
+html.view-list .tile { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 12px; margin-bottom: 6px; }
+html.view-list .tile img { display: none; }
+html.view-list .tile .name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.view-list .tile .size { display: block; }
+html.view-list .tile .time { margin: 0; font-size: .8rem; color: #777; }
+.pagination { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+.pagination .info { font-size: .85rem; color: #555; }
+.button-link.disabled { opacity: .45; pointer-events: none; }
+.lightbox { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.88); }
+.lightbox[hidden] { display: none; }
+.lightbox img { max-width: 92vw; max-height: 80vh; object-fit: contain; border-radius: 8px; }
+.lightbox-close, .lightbox-prev, .lightbox-next { position: absolute; width: 44px; height: 44px; padding: 0; border-radius: 50%; background: rgba(255,255,255,.18); font-size: 1.5rem; line-height: 1; }
+.lightbox-close { top: 16px; right: 16px; }
+.lightbox-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+.lightbox-next { right: 16px; top: 50%; transform: translateY(-50%); }
+.lightbox-caption { position: absolute; bottom: 16px; left: 16px; right: 16px; text-align: center; color: #ddd; font-size: .8rem; }
+.lightbox-caption a { color: #4fc3f7; }
+.lightbox button:disabled { opacity: .35; cursor: default; }
 @media (prefers-color-scheme: dark) {
   body { background: #111; color: #eee; }
   .card { background: #1e1e1e; box-shadow: none; }
   .card p { color: #aaa; }
   .card .empty { background: #2a2a2a; color: #999; }
   .card .path { color: #777; }
-  input[type=time] { background: #2a2a2a; color: #eee; border-color: #555; }
+  input[type=time], select { background: #2a2a2a; color: #eee; border-color: #555; }
   #status, #save-status, #all-result { color: #aaa; }
+  .toolbar .count, .toolbar label { color: #aaa; }
+  .tile { background: #1e1e1e; box-shadow: none; }
+  .tile img { background: #2a2a2a; }
+  .tile .time { color: #aaa; }
+  .list-header { color: #888; border-color: #333; }
+  html.view-list .tile { border-bottom: 1px solid #2f2f2f; }
+  html.view-list .tile .time { color: #999; }
+  .pagination .info { color: #aaa; }
 }
 """
 
@@ -230,6 +294,135 @@ document.getElementById('save').addEventListener('click', async function () {
 </html>
 """
 
+BROWSE_PAGE = """<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<script>
+try {
+  if (localStorage.getItem('timelapse-browse-view') === 'list') document.documentElement.classList.add('view-list');
+} catch (error) {}
+</script>
+<style>
+__STYLE__
+</style>
+</head>
+<body>
+__CONTENT__
+<div id="lightbox" class="lightbox" hidden>
+<button type="button" class="lightbox-close" aria-label="关闭">×</button>
+<button type="button" class="lightbox-prev" aria-label="上一张">‹</button>
+<img alt="">
+<button type="button" class="lightbox-next" aria-label="下一张">›</button>
+<div class="lightbox-caption"><span></span> <a target="_blank" rel="noopener">在新标签打开原图</a></div>
+</div>
+<script>
+(function () {
+  var VIEW_KEY = 'timelapse-browse-view';
+  var root = document.documentElement;
+
+  function applyView(view) {
+    root.classList.toggle('view-list', view === 'list');
+    document.querySelectorAll('.view-toggle button').forEach(function (button) {
+      button.classList.toggle('active', button.getAttribute('data-view') === view);
+    });
+  }
+  applyView(root.classList.contains('view-list') ? 'list' : 'grid');
+  document.querySelectorAll('.view-toggle button').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var view = button.getAttribute('data-view');
+      try { localStorage.setItem(VIEW_KEY, view); } catch (error) {}
+      applyView(view);
+    });
+  });
+
+  var sort = document.getElementById('sort');
+  var per = document.getElementById('per');
+  function reload() {
+    location.search = '?sort=' + encodeURIComponent(sort.value) + '&per=' + encodeURIComponent(per.value) + '&page=1';
+  }
+  sort.addEventListener('change', reload);
+  per.addEventListener('change', reload);
+
+  var images = Array.from(document.querySelectorAll('img[data-src]'));
+  images.forEach(function (img) {
+    img.addEventListener('error', function () { img.style.visibility = 'hidden'; });
+  });
+  function load(img) {
+    img.src = img.getAttribute('data-src');
+    img.removeAttribute('data-src');
+  }
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        load(entry.target);
+      });
+    });
+    images.forEach(function (img) { observer.observe(img); });
+  } else {
+    images.forEach(load);
+  }
+
+  var links = Array.from(document.querySelectorAll('.items a.tile[data-full]'));
+  var box = document.getElementById('lightbox');
+  if (!links.length || !box) return;
+
+  var boxImage = box.querySelector('img');
+  var caption = box.querySelector('.lightbox-caption span');
+  var original = box.querySelector('.lightbox-caption a');
+  var prev = box.querySelector('.lightbox-prev');
+  var next = box.querySelector('.lightbox-next');
+  var current = -1;
+  var lastFocus = null;
+
+  function show(index) {
+    if (index < 0 || index >= links.length) return;
+    current = index;
+    var link = links[index];
+    var url = link.getAttribute('data-full');
+    boxImage.src = url;
+    boxImage.alt = link.getAttribute('data-name');
+    caption.textContent = link.getAttribute('data-name') + ' · ' + link.getAttribute('data-time') + ' · ' + link.getAttribute('data-size');
+    original.href = url;
+    prev.disabled = index === 0;
+    next.disabled = index === links.length - 1;
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    box.hidden = true;
+    boxImage.removeAttribute('src');
+    document.body.style.overflow = '';
+    if (lastFocus) lastFocus.focus();
+  }
+  links.forEach(function (link, index) {
+    link.addEventListener('click', function (event) {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      lastFocus = link;
+      show(index);
+    });
+  });
+  prev.addEventListener('click', function () { show(current - 1); });
+  next.addEventListener('click', function () { show(current + 1); });
+  box.querySelector('.lightbox-close').addEventListener('click', close);
+  box.addEventListener('click', function (event) { if (event.target === box) close(); });
+  document.addEventListener('keydown', function (event) {
+    if (box.hidden) return;
+    if (event.key === 'Escape') close();
+    else if (event.key === 'ArrowLeft') show(current - 1);
+    else if (event.key === 'ArrowRight') show(current + 1);
+  });
+})();
+</script>
+</body>
+</html>
+"""
+
 
 class GalleryHandler(SimpleHTTPRequestHandler):
     sources = []
@@ -362,13 +555,17 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _page(self, template, content):
-        body = template.replace("__STYLE__", SHARED_STYLE).replace("__CONTENT__", content).encode("utf-8")
+    def _page(self, template, content, title=None):
+        body = template.replace("__STYLE__", SHARED_STYLE).replace("__CONTENT__", content)
+        if title is not None:
+            body = body.replace("__TITLE__", html.escape(title))
+        body = body.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def _relative_link(self, directory):
         try:
@@ -376,6 +573,176 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         except ValueError:
             return None
         return relative.as_posix()
+
+    def list_directory(self, path):
+        source = self._source_for_directory(path)
+        if source is not None:
+            self._page(BROWSE_PAGE, self._browse_content(source), title=f"{source.name} · 抓拍列表")
+            return None
+        return super().list_directory(path)
+
+    def _source_for_directory(self, path):
+        try:
+            directory = Path(path).resolve()
+        except OSError:
+            return None
+        for source in self.sources:
+            try:
+                if source.directory.resolve() == directory:
+                    return source
+            except OSError:
+                continue
+        return None
+
+    @staticmethod
+    def _int_param(query, key, default):
+        try:
+            return int((query.get(key) or [default])[0])
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _format_size(size):
+        value = float(size)
+        if value < 1024:
+            return f"{int(value)} B"
+        if value < 1024 * 1024:
+            return f"{value / 1024:.1f} KB"
+        if value < 1024 * 1024 * 1024:
+            return f"{value / (1024 * 1024):.1f} MB"
+        return f"{value / (1024 * 1024 * 1024):.1f} GB"
+
+    def _scan_items(self, source):
+        items = []
+        try:
+            entries = os.scandir(source.directory)
+        except OSError:
+            return items
+        with entries:
+            for entry in entries:
+                name = entry.name
+                if name == "latest.jpg" or name.endswith(".tmp"):
+                    continue
+                if Path(name).suffix.lower() not in IMAGE_SUFFIXES:
+                    continue
+                try:
+                    if not entry.is_file():
+                        continue
+                    stat = entry.stat()
+                except OSError:
+                    continue
+                items.append({"name": name, "mtime": stat.st_mtime, "size": stat.st_size})
+        return items
+
+    def _browse_item(self, item):
+        name = item["name"]
+        url = quote(name)
+        label = datetime.fromtimestamp(item["mtime"]).strftime("%Y-%m-%d %H:%M:%S")
+        size = self._format_size(item["size"])
+        escaped = html.escape(name)
+        return (
+            f'<a class="tile" href="{url}" data-full="{url}" data-name="{escaped}"'
+            f' data-time="{label}" data-size="{size}" title="{escaped}">'
+            f'<img data-src="{url}" alt="{escaped}" decoding="async">'
+            f'<span class="name">{escaped}</span>'
+            f'<span class="time">{label}</span>'
+            f'<span class="size">{size}</span>'
+            "</a>"
+        )
+
+    def _pagination(self, sort, per, page, pages):
+        def link(label, target, enabled):
+            if enabled:
+                href = f"?sort={sort}&amp;per={per}&amp;page={target}"
+                return f'<a class="button-link secondary" href="{href}">{label}</a>'
+            return f'<span class="button-link secondary disabled">{label}</span>'
+
+        return (
+            '<nav class="pagination">'
+            + link("首页", 1, page > 1)
+            + link("上一页", page - 1, page > 1)
+            + f'<span class="info">第 {page} / {pages} 页</span>'
+            + link("下一页", page + 1, page < pages)
+            + link("末页", pages, page < pages)
+            + "</nav>"
+        )
+
+    def _browse_content(self, source):
+        query = parse_qs(urlparse(self.path).query)
+
+        sort = (query.get("sort") or [DEFAULT_SORT])[0]
+        if sort not in SORT_KEYS:
+            sort = DEFAULT_SORT
+
+        per = self._int_param(query, "per", DEFAULT_PAGE_SIZE)
+        if per not in PAGE_SIZES:
+            per = DEFAULT_PAGE_SIZE
+
+        items = self._scan_items(source)
+        key, reverse = SORT_KEYS[sort]
+        items.sort(key=key, reverse=reverse)
+
+        pages = max(1, (len(items) + per - 1) // per)
+        page = min(max(self._int_param(query, "page", 1), 1), pages)
+        start = (page - 1) * per
+        visible = items[start : start + per]
+
+        relative = self._relative_link(source.directory)
+        back = "../" * (len(Path(relative).parts) if relative else 1)
+
+        latest = source.directory / "latest.jpg"
+        latest_item = None
+        if latest.is_file():
+            try:
+                stat = latest.stat()
+                latest_item = {
+                    "name": latest.name,
+                    "mtime": stat.st_mtime,
+                    "size": stat.st_size,
+                }
+            except OSError:
+                latest_item = None
+
+        sort_options = "".join(
+            f'<option value="{value}"{" selected" if value == sort else ""}>{label}</option>'
+            for value, label in SORT_OPTIONS
+        )
+        per_options = "".join(
+            f'<option value="{size}"{" selected" if size == per else ""}>{size} 张</option>'
+            for size in PAGE_SIZES
+        )
+
+        parts = [
+            "<header>",
+            f"<h1>{html.escape(source.name)} · 抓拍列表</h1>",
+            f'<a class="button-link secondary" href="{back}">返回首页</a>',
+            "</header>",
+            '<div class="toolbar">',
+            f'<span class="count">共 {len(items)} 张</span>',
+            '<div class="view-toggle">',
+            '<button type="button" class="secondary active" data-view="grid">网格</button>',
+            '<button type="button" class="secondary" data-view="list">列表</button>',
+            "</div>",
+            f'<label>排序 <select id="sort">{sort_options}</select></label>',
+            f'<label>每页 <select id="per">{per_options}</select></label>',
+            "</div>",
+        ]
+
+        if latest_item is not None:
+            parts.append('<section class="latest-section">')
+            parts.append('<h2>最新抓拍 <span class="badge">latest.jpg</span></h2>')
+            parts.append('<div class="items">' + self._browse_item(latest_item) + "</div>")
+            parts.append("</section>")
+
+        parts.append('<div class="list-header"><span>文件名</span><span>抓拍时间</span><span>大小</span></div>')
+        if visible:
+            parts.append('<div class="items">' + "".join(self._browse_item(item) for item in visible) + "</div>")
+        else:
+            parts.append('<p class="notice">还没有抓拍文件。</p>')
+        if pages > 1:
+            parts.append(self._pagination(sort, per, page, pages))
+
+        return "".join(parts)
 
     def _gallery_cards(self):
         cards = [self._gallery_card(source) for source in sorted(self.sources, key=lambda item: item.name)]

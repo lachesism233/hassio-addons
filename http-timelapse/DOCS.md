@@ -74,9 +74,17 @@ Default `snap_%Y%m%d_%H%M%S.jpg`, where the time part is the **scheduled time**:
 
 Open the gallery from the sidebar **HTTP Timelapse** (or directly via `http://<HA host>:8099/`):
 
-- **Home**: latest snapshot and last capture time per source; click through to browse all history
+- **Home**: latest snapshot and last capture time per source; click a source card to open the capture browser
 - **Capture now / Capture all now**: for debugging, ignores the schedule and captures immediately
 - **Settings**: edit per-source daily times with a time picker; saving restarts the app automatically
+- **Capture browser** (one page per source):
+  - grid/list view toggle, remembered per browser
+  - sort by time, file name or size, each in both directions
+  - 30 / 60 / 120 items per page
+  - grid images are loaded lazily, only when they scroll into view
+  - `latest.jpg` is pinned at the top, outside sorting and paging
+  - click an image to open the built-in lightbox: `←` / `→` to switch, `Esc` to close, or open the original in a new tab
+  - a back-to-home link returns to the gallery
 
 ## Show the latest frame on a dashboard
 
@@ -186,9 +194,17 @@ http://<go2rtc地址>:1984/api/frame.jpeg?src=<流名称>
 
 通过侧边栏「HTTP Timelapse」打开浏览面板（也可用 `http://<HA地址>:8099/` 直接访问）：
 
-- **首页**：每个源的最新截图、最近抓拍时间；点击进入目录浏览全部历史
+- **首页**：每个源的最新截图、最近抓拍时间；点击卡片进入抓拍浏览页
 - **立即抓拍 / 全部立即抓拍**：调试用，忽略计划立即抓拍一张
 - **设置**：用时间选择器编辑每个源的每日时间点，保存并自动重启生效
+- **抓拍浏览页**（每个源一个页面）：
+  - 网格 / 列表视图切换，按浏览器记忆偏好
+  - 按时间、文件名或大小排序，各支持正反序
+  - 每页 30 / 60 / 120 张
+  - 网格图片懒加载，滚动到可视区域才会下载
+  - `latest.jpg` 置顶「最新抓拍」，不参与排序与分页
+  - 点击图片打开内置灯箱：`←` / `→` 切换、`Esc` 关闭，也可在新标签页打开原图
+  - 「返回首页」链接回到浏览面板
 
 ## 仪表盘显示最新画面
 
