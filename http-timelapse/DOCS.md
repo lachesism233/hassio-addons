@@ -1,6 +1,6 @@
 # HTTP Timelapse
 
-**English** | [简体中文](#简体中文) | [Changelog 更新日志](CHANGELOG.md)
+**English** | [Changelog 更新日志](CHANGELOG.md)
 
 Scheduled JPEG snapshots from go2rtc or any HTTP endpoint, with validation and retries, saved
 with the scheduled time in the file name — built for unattended long-term runs.

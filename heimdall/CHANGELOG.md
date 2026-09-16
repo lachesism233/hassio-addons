@@ -5,18 +5,21 @@ All notable changes to the Heimdall app. / Heimdall 应用的版本变更记录�
 ## 2.8.3.1 - 2026-09-15
 
 - Bilingual (English / Simplified Chinese) documentation and this changelog.
-  文档与更新日志改为中英双语。
 - English app description in the app store.
-  应用商店描述改为英文。
+
+- 文档与更新日志改为中英双语。
+- 应用商店描述改为英文。
 
 ## 2.8.3 - 2026-09-14
 
 - Version number now follows upstream Heimdall.
-  版本号跟随上游 Heimdall。
 - Internal-address lookup requests are allowed by default.
-  默认允许向内网地址发起查找请求。
+
+- 版本号跟随上游 Heimdall。
+- 默认允许向内网地址发起查找请求。
 
 ## 1.0.0 - 2026-09-14
 
 - First release: LinuxServer-based Heimdall with timezone and internal-request options.
-  首个版本：基于 LinuxServer 镜像打包 Heimdall，提供时区与内网请求选项。
+
+- 首个版本：基于 LinuxServer 镜像打包 Heimdall，提供时区与内网请求选项。

@@ -1,6 +1,6 @@
 # SRS Media Server
 
-**English** | [简体中文](#简体中文) | [Changelog 更新日志](CHANGELOG.md)
+**English** | [Changelog 更新日志](CHANGELOG.md)
 
 Realtime media server based on [SRS](https://github.com/ossrs/srs) (6.0 stable): ingest from OBS or
 FFmpeg over RTMP/SRT, play over HLS, HTTP-FLV or WebRTC — handy for bringing a camera or an OBS

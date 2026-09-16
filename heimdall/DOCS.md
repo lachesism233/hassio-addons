@@ -1,6 +1,6 @@
 # Heimdall
 
-**English** | [简体中文](#简体中文) | [Changelog 更新日志](CHANGELOG.md)
+**English** | [Changelog 更新日志](CHANGELOG.md)
 
 The [LinuxServer](https://github.com/linuxserver/Heimdall) build of Heimdall: an application dashboard
 that turns your favourite sites and self-hosted services into icon tiles, with groups, a search bar and
